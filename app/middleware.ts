@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { securityHeaders, isIPBlocked, generateCSRFToken } from '@/lib/security';
+import { securityHeaders, isIPBlocked } from '@/lib/security';
+import { generateCSRFToken } from '@/lib/security.server';
 
 export function middleware(request: NextRequest) {
   const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';

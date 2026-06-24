@@ -8,16 +8,19 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  name      String?
-  email     String   @unique
-  image     String?
-  role      String   @default("PROFESSIONAL")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(cuid())
+  name          String?
+  email         String   @unique
+  passwordHash  String?  // NULL for OAuth-only users
+  image         String?
+  role          String   @default("PROFESSIONAL")
+  lastLogin     DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   company      Company?
   professional Professional?
+  profile      Profile?
 }
 
 model Company {
@@ -65,4 +68,140 @@ model PaymentRecord {
 
   @@index([reference])
   @@index([status])
+}
+
+// MODELO DE VITRINE - Profissional como Produto
+// Expandido para armazenar todos os dados do formulário de cadastro
+model Profile {
+  // Campos originais (mantidos para compatibilidade)
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  title           String   // Cargo/Profissão
+  bio             String?  // Descrição resumida
+  fullDescription String?  // Descrição completa
+  location        String   // Cidade/Estado (formato: "Cidade, UF")
+  phone           String?  // Telefone principal
+  whatsapp        String?  // WhatsApp
+  email           String?  // Email (cópia do User.email)
+  skills          String?  // JSON stringified array ["skill1", "skill2"]
+  experience      String?  // Descrição de experiência ou JSON
+  portfolio       String?  // URL ou JSON
+  avatar          String?  // URL da foto de perfil
+  isVisible       Boolean  @default(true)
+  viewCount       Int      @default(0)
+  status          String   @default("ACTIVE")  // ACTIVE, INACTIVE, BLOCKED
+  
+  // Novos campos: Dados Pessoais
+  cpf             String?  // formato: 123.456.789-00
+  dataNascimento  DateTime? // Data de nascimento
+  idade           Int?      // Idade calculada
+  sexoBiologico   String?  // Masculino, Feminino, Outro
+  identidadeGenero String?  // Cisgênero, Transgênero, Não-binário, Outro
+  orientacaoSexual String? // Heterossexual, Homossexual, Bissexual, Outro
+  estadoCivil     String?  // Solteiro, Casado, Divorciado, Viúvo
+  religiao        String?  // Católico, Protestante, Espírita, Ateu, Outro
+  antecedentes    Boolean? // Possui antecedentes criminais
+  
+  // Novos campos: Filhos
+  possuiFilhos    Boolean? // Possui filhos
+  quantidadeFilhos Int?    // Quantidade de filhos
+  faixaEtariaFilhos String? // JSON array ["Menos de 1", "1-3", "3-5", etc]
+  
+  // Novos campos: Localização detalhada
+  telefone2       String?  // Telefone secundário
+  estado          String?  // UF (AC, AL, AP, AM, BA, etc)
+  cidade          String?  // Município
+  disponibilidadeMudanca String? // Sim, Não, Dependendo
+  
+  // Novos campos: Formação
+  escolaridade    String?  // Fundamental, Médio, Técnico, Superior, Pós
+  cursosCertificacoes String? // JSON array ["Curso 1", "Curso 2"]
+  
+  // Novos campos: Profissional
+  situacaoProfissional String? // Empregado, Desempregado, Primeiro emprego, Jovem Aprendiz
+  areaInteresse   String?  // Automotivo, Aviação, Construção, etc
+  cargoDesejado   String?  // Cargo desejado
+  trabalhouIndustria String? // Não, Primeiro emprego, Jovem aprendiz, Sim
+  tempoExperiencia String? // <1 ano, 1-2, 3-5, 6-10, >10 anos
+  experienciasJSON String? // JSON array: [{"nome": "Empresa", "cargo": "Cargo", "dataInicio": "2020-01-01", "dataFim": "2021-12-31"}]
+  turnoDisponivel String?  // Manhã, Tarde, Noite, Integral
+  
+  // Novos campos: Recolocação e Salário
+  disponibilidadeInicio String? // Imediata, 15 dias, 30 dias, 2 meses
+  recolocacao     String?  // Sim, Não, Dependendo
+  pretensaoSalarial String? // Faixa salarial (Até 1k, 1-2k, 2-3k, etc)
+  
+  // Novos campos: Documentos
+  curricoURL      String?  // URL do PDF/DOC do currículo (se enviado)
+  atestadoURL     String?  // URL do PDF/JPG do atestado (se enviado)
+  
+  // Novos campos: Mensagem
+  mensagemEmpresas String? // Apresentação pessoal para empresas
+  
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profileViews    ProfileView[]
+  accessRecords   AccessRecord[]
+  tips            Tip[]
+
+  @@index([userId])
+  @@index([location])
+  @@index([estado])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// Registro de quem visualizou cada profissional
+model ProfileView {
+  id              String   @id @default(cuid())
+  profileId       String
+  companyUserId   String   // ID da empresa que viu
+  viewType        String   @default("SUMMARY")  // SUMMARY (sem acesso pago), FULL (com acesso pago)
+  createdAt       DateTime @default(now())
+
+  profile         Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+  @@index([companyUserId])
+  @@index([createdAt])
+}
+
+// Acesso pago a perfil completo
+model AccessRecord {
+  id              String   @id @default(cuid())
+  profileId       String
+  companyUserId   String   // Qual empresa pagou
+  accessType      String   @default("FULL")  // FULL, CONTACT_ONLY
+  paymentId       String?  // ID do pagamento
+  expiresAt       DateTime // Quando expira o acesso
+  status          String   @default("ACTIVE")  // ACTIVE, EXPIRED
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  profile         Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+  @@index([companyUserId])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+// Dicas/feedback anônimas de empresas para profissionais
+model Tip {
+  id              String   @id @default(cuid())
+  profileId       String
+  companyUserId   String   // Qual empresa deixou a dica
+  message         String   // A dica/feedback
+  isAnonymous     Boolean  @default(true)
+  rating          Int?     // 1-5 stars opcional
+  createdAt       DateTime @default(now())
+
+  profile         Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+  @@index([companyUserId])
+  @@index([createdAt])
 }

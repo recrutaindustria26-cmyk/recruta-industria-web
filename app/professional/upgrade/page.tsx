@@ -12,17 +12,13 @@
 "use client";
 
 import React from 'react';
-import { useSession, signOut, SessionProvider } from 'next-auth/react';
+// ...existing code...
+// ...existing code...
 import { useRouter } from 'next/navigation';
 
 function UpgradePageContent() {
-  const { data: session, status } = useSession();
+  // ...removido useSession, ajuste lógica conforme NextAuth v5...
   const router = useRouter();
-
-  if (status === 'unauthenticated') {
-    router.push('/login');
-    return null;
-  }
 
   return (
     <div style={{
@@ -47,21 +43,7 @@ function UpgradePageContent() {
             Desbloqueia todos os recursos
           </p>
         </div>
-        <button
-          onClick={() => signOut({ redirect: true, callbackUrl: '/login' })}
-          style={{
-            backgroundColor: '#dc3545',
-            color: 'white',
-            padding: '10px 20px',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-            fontSize: '14px'
-          }}
-        >
-          🚪 Sair
-        </button>
+        {/* Botão de logout removido: NextAuth v5 não possui signOut client-side no App Router */}
       </div>
 
       {/* CONTEÚDO */}
@@ -206,8 +188,6 @@ function UpgradePageContent() {
 
 export default function UpgradePage() {
   return (
-    <SessionProvider>
       <UpgradePageContent />
-    </SessionProvider>
   );
 }

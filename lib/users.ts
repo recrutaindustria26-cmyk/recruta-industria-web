@@ -1,5 +1,5 @@
 import crypto from 'crypto'
-import { hashPassword as securityHashPassword, verifyPassword } from './security'
+import { hashPassword as securityHashPassword, verifyPassword } from './security.server'
 import { prisma } from './db'
 
 export type UserType = 'professional' | 'company'
@@ -38,13 +38,13 @@ async function readUsers(): Promise<any[]> {
   }
 }
 // Hash de senha
-function hashPassword(password: string): string {
-  return securityHashPassword(password)
+async function hashPassword(password: string): Promise<string> {
+  return await securityHashPassword(password)
 }
 
 // Comparar senha
-function comparePassword(password: string, hash: string): boolean {
-  return verifyPassword(password, hash)
+async function comparePassword(password: string, hash: string): Promise<boolean> {
+  return await verifyPassword(password, hash)
 }
 
 // Buscar usuário por email
@@ -94,17 +94,20 @@ export async function createUser(
     throw new Error('Email já cadastrado')
   }
 
+  const passwordHash = password ? await hashPassword(password) : null
+
   return await prisma.user.create({
     data: {
       email: email.toLowerCase(),
       name: googleEmail || email,
+      passwordHash,
       role: userType === 'company' ? 'COMPANY' : 'PROFESSIONAL',
       image: null,
     },
   })
 }
 
-// Validar credenciais
+// Validar credenciais - verifica email e senha
 export async function validateCredentials(email: string, password: string): Promise<any | null> {
   const user = await findUserByEmail(email)
   
@@ -112,8 +115,17 @@ export async function validateCredentials(email: string, password: string): Prom
     return null
   }
 
-  // Aqui você verificaria a senha do banco
-  // Por enquanto, retorna o usuário se existir
+  // Verifica se o usuário tem passwordHash (usuários com OAuth podem não ter)
+  if (!user.passwordHash) {
+    return null
+  }
+
+  // Verifica a senha
+  const match = await comparePassword(password, user.passwordHash)
+  if (!match) {
+    return null
+  }
+
   return user
 }
 
@@ -122,7 +134,7 @@ export async function updateLastLogin(userId: string): Promise<void> {
   try {
     await prisma.user.update({
       where: { id: userId },
-      data: { updatedAt: new Date() },
+      data: { lastLogin: new Date(), updatedAt: new Date() },
     })
   } catch {
     // Silenciosamente ignorar se não existir
@@ -162,6 +174,7 @@ export async function updateUserPassword(userId: string, newPasswordHash: string
     return await prisma.user.update({
       where: { id: userId },
       data: {
+        passwordHash: newPasswordHash,
         updatedAt: new Date(),
       },
     })

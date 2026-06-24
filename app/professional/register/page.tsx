@@ -42,6 +42,7 @@ export default function CadastroProfissional() {
   const [telefone2, setTelefone2] = useState('');
   const [pretensaoSalarial, setPretensaoSalarial] = useState('');
   const [cursos, setCursos] = useState<string[]>(['']);
+  const [dataNascimentoValue, setDataNascimentoValue] = useState('');
   const [empresas, setEmpresas] = useState<{nome: string, cargo: string, dataInicio: string, dataFim: string}[]>([{nome: '', cargo: '', dataInicio: '', dataFim: ''}]);
   
   const [formData, setFormData] = useState({
@@ -98,8 +99,61 @@ export default function CadastroProfissional() {
         // Marcar senha como preenchida para não mostrar campos de senha
         setSenhaPreenchida(true);
       }
+      
+      // Carregar dados do formulário completo se houver
+      const dadosFormulario = localStorage.getItem('dadosFormularioCompleto');
+      if (dadosFormulario) {
+        try {
+          const dados = JSON.parse(dadosFormulario);
+          console.log('📥 Restaurando do localStorage:', {dataNascimentoDisplay: dados.dataNascimentoDisplay, dataNascimento: dados.dataNascimento});
+          
+          // Restaurar APENAS dataNascimentoDisplay (o que o usuário vê e digita)
+          if (dados.dataNascimentoDisplay) {
+            console.log('✅ Restaurando dataNascimentoDisplay:', dados.dataNascimentoDisplay);
+            setDataNascimentoValue(dados.dataNascimentoDisplay);
+          }
+          
+          // Restaurar apenas os campos do formData EXCETO dataNascimento (vamos usar o display)
+          const formDataRestored = {};
+          Object.keys(formData).forEach(key => {
+            if (key !== 'dataNascimento' && key in dados && dados[key] !== undefined) {
+              formDataRestored[key] = dados[key];
+            }
+          });
+          
+          setFormData(prev => ({...prev, ...formDataRestored}));
+          
+          // Restaurar cpf
+          if (dados.cpf) {
+            setCpf(dados.cpf);
+          }
+          
+          console.log('✅ Dados do formulário completo restaurados');
+        } catch (err) {
+          console.error('Erro ao carregar dados do formulário:', err);
+        }
+      }
     }
   }, []);
+
+  // Salvar dados do formulário no localStorage sempre que mudar
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      // Só salvar se houver algum dado preenchido
+      if (Object.values(formData).some(v => v !== '' && v !== false && v !== null) || dataNascimentoValue || cpf) {
+        const dadosParaSalvar = {
+          ...formData,
+          cpf: cpf,
+          dataNascimentoDisplay: dataNascimentoValue
+        };
+        console.log('💾 SALVANDO no localStorage:', {
+          dataNascimentoDisplay: dataNascimentoValue,
+          dataNascimento: formData.dataNascimento
+        });
+        localStorage.setItem('dadosFormularioCompleto', JSON.stringify(dadosParaSalvar));
+      }
+    }
+  }, [formData, cpf, dataNascimentoValue]);
 
   useEffect(() => {
     if (formData.estado) {
@@ -135,12 +189,38 @@ export default function CadastroProfissional() {
             return;
           }
           
-          // SE A SENHA FOI PREENCHIDA NO CADASTRO SIMPLES, PULAR VALIDAÇÃO DE SENHA
+          // SE A SENHA FOI PREENCHIDA NO CADASTRO SIMPLES, SALVAR APENAS OS DADOS COMPLETOS
           if (senhaPreenchida === true) {
-            console.log('Senha foi preenchida no cadastro simples - pulando validação');
+            console.log('Senha foi preenchida no cadastro simples - salvando dados completos apenas');
             // Se veio do cadastro simples, já tem email e senha salvos
-            // Só redireciona
-            router.push('/professional/dashboard/painel');
+            // Agora salvar os dados completos do formulário (SEM tentar registrar novamente)
+            fetch('/api/professional/profile', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                ...formData,
+                email: formData.email
+              })
+            })
+              .then(res => {
+                if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+                return res.json();
+              })
+              .then(data => {
+                if (data.success) {
+                  console.log('✅ Perfil atualizado com sucesso');
+                  localStorage.removeItem('dadosFormularioCompleto');
+                  localStorage.removeItem('dadosCadastroSimples');
+                  router.push('/professional/dashboard/painel');
+                } else {
+                  console.error('Erro:', data);
+                  alert('Erro ao atualizar perfil: ' + (data.error || 'Desconhecido'));
+                }
+              })
+              .catch(err => {
+                console.error('Erro ao atualizar perfil:', err);
+                alert('Erro ao conectar ao servidor: ' + err.message);
+              });
             return;
           }
           
@@ -166,20 +246,38 @@ export default function CadastroProfissional() {
               password: password,
               confirmPassword: confirmPassword,
               userType: 'professional',
-              cpf: cpfLimpo
+              cpf: cpfLimpo,
+              name: formData.nome
             })
           })
             .then(res => res.json())
             .then(data => {
               if (data.success) {
                 console.log('✅ Usuário registrado com sucesso');
+                // Agora salvar os dados completos do formulário
+                return fetch('/api/professional/profile', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(formData)
+                });
+              } else {
+                throw new Error(data.error || 'Erro ao registrar');
+              }
+            })
+            .then(res => res.json())
+            .then(data => {
+              if (data.success) {
+                console.log('✅ Perfil salvo com sucesso');
+                // Limpar dados do localStorage após sucesso
+                localStorage.removeItem('dadosFormularioCompleto');
+                localStorage.removeItem('dadosCadastroSimples');
                 router.push('/professional/dashboard/painel');
               } else {
-                alert('Erro ao registrar: ' + (data.error || 'Desconhecido'));
+                alert('Erro ao salvar perfil: ' + (data.error || 'Desconhecido'));
               }
             })
             .catch(err => {
-              console.error('Erro ao registrar:', err);
+              console.error('Erro:', err);
               alert('Erro ao conectar ao servidor');
             });
         }} className={styles.form}>
@@ -311,13 +409,62 @@ export default function CadastroProfissional() {
 
             <div className={styles.grid}>
               <div>
-                <label className={styles.label} htmlFor="dataNascimento">Data de nascimento *</label>
-                <input id="dataNascimento" type="date" required className={styles.input} onChange={e => {
-                  const birth = new Date(e.target.value);
-                  const today = new Date();
-                  const age = today.getFullYear() - birth.getFullYear();
-                  setFormData({...formData, dataNascimento: e.target.value, idade: age.toString()});
-                }} />
+                <label className={styles.label} htmlFor="dataNascimento">Data de nascimento (DD/MM/AAAA) *</label>
+                <input 
+                  id="dataNascimento" 
+                  type="text"
+                  placeholder="dd/mm/aaaa"
+                  maxLength={10}
+                  required 
+                  className={styles.input}
+                  value={dataNascimentoValue}
+                  onChange={e => {
+                    let value = e.target.value.replace(/\D/g, ''); // Remove não-números
+                    
+                    // Formata como DD/MM/AAAA enquanto digita
+                    if (value.length >= 2) {
+                      value = value.slice(0, 2) + '/' + value.slice(2);
+                    }
+                    if (value.length >= 5) {
+                      value = value.slice(0, 5) + '/' + value.slice(5, 9);
+                    }
+                    
+                    setDataNascimentoValue(value);
+                    
+                    // Se completou a data (DD/MM/AAAA)
+                    if (value.length === 10) {
+                      const [day, month, year] = value.split('/');
+                      const dayNum = parseInt(day);
+                      const monthNum = parseInt(month);
+                      const yearNum = parseInt(year);
+                      
+                      console.log('🎯 Data digitada:', {digitado: value, day, month, year, dayNum, monthNum, yearNum});
+                      
+                      // Validar data
+                      if (dayNum >= 1 && dayNum <= 31 && monthNum >= 1 && monthNum <= 12 && yearNum > 1900) {
+                        const birth = new Date(yearNum, monthNum - 1, dayNum);
+                        const today = new Date();
+                        
+                        // Verificar se a data é válida (ex: 31/02 não existe)
+                        if (birth.getDate() === dayNum) {
+                          const age = today.getFullYear() - birth.getFullYear();
+                          const monthDiff = today.getMonth() - birth.getMonth();
+                          const dayDiff = today.getDate() - birth.getDate();
+                          
+                          // Ajustar idade se o aniversário ainda não ocorreu este ano
+                          const finalAge = (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) ? age - 1 : age;
+                          
+                          // Converter para YYYY-MM-DD para armazenar
+                          const isoDate = `${String(yearNum).padStart(4, '0')}-${String(monthNum).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+                          console.log('💾 Salvando:', {display: value, iso: isoDate, age: finalAge});
+                          setFormData({...formData, dataNascimento: isoDate, idade: finalAge.toString()});
+                        } else {
+                          console.warn('⚠️ Data inválida detectada:', {digitado: value, birthDate: birth.toLocaleDateString(), dayNum});
+                        }
+                      }
+                    }
+                  }} 
+                />
               </div>
               <div>
                 <label className={styles.label} htmlFor="idade">Idade *</label>
@@ -1019,13 +1166,59 @@ export default function CadastroProfissional() {
             <h2 className={styles.sectionTitle}>Documentos</h2>
             
             <label className={styles.label} htmlFor="fotoPerfil">Foto de perfil</label>
-            <input id="fotoPerfil" type="file" accept="image/*" className={styles.input} />
+            <input 
+              id="fotoPerfil" 
+              type="file" 
+              accept="image/*" 
+              className={styles.input}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  const reader = new FileReader();
+                  reader.onloadend = () => {
+                    setFormData({...formData, fotoPerfil: file});
+                  };
+                  reader.readAsDataURL(file);
+                }
+              }}
+            />
 
             <label className={styles.label} htmlFor="curriculo">Currículo (PDF ou Word) *</label>
-            <input id="curriculo" type="file" accept=".pdf,.doc,.docx" required className={styles.input} />
+            <input 
+              id="curriculo" 
+              type="file" 
+              accept=".pdf,.doc,.docx" 
+              required 
+              className={styles.input}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  const reader = new FileReader();
+                  reader.onloadend = () => {
+                    setFormData({...formData, curriculo: file});
+                  };
+                  reader.readAsDataURL(file);
+                }
+              }}
+            />
 
             <label className={styles.label} htmlFor="atestado">Atestado de antecedentes (opcional)</label>
-            <input id="atestado" type="file" accept=".pdf,.jpg,.png" className={styles.input} />
+            <input 
+              id="atestado" 
+              type="file" 
+              accept=".pdf,.jpg,.png" 
+              className={styles.input}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  const reader = new FileReader();
+                  reader.onloadend = () => {
+                    setFormData({...formData, atestado: file});
+                  };
+                  reader.readAsDataURL(file);
+                }
+              }}
+            />
 
             <p className={styles.seriousNote}>Documento opcional no cadastro inicial. A empresa contratante poderá solicitá-lo posteriormente.</p>
           </section>

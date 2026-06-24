@@ -140,9 +140,11 @@ export function formatCPF(cpf: string): string {
   return cleaned.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
 }
 
-// Rate limiting simples em memória
+// Rate limiting simples em memória - separado por tipo de operação
 const loginAttempts = new Map<string, { count: number; timestamp: number }>();
+const registerAttempts = new Map<string, { count: number; timestamp: number }>();
 
+// Rate limit para LOGIN - incrementa apenas em falhas de autenticação
 export function checkRateLimit(identifier: string, maxAttempts = 5, windowMs = 15 * 60 * 1000): boolean {
   const now = Date.now();
   const attempt = loginAttempts.get(identifier);
@@ -161,12 +163,10 @@ export function checkRateLimit(identifier: string, maxAttempts = 5, windowMs = 1
     return false;
   }
 
-  // IMPORTANTE: O contador é incrementado apenas quando essa função retorna true
-  // Isso deve ser feito APÓS a validação bem-sucedida, não aqui
   return true;
 }
 
-// Nova função para incrementar o contador de tentativas (deve ser chamada APÓS validação)
+// Incrementar tentativas de LOGIN (apenas em falha de autenticação)
 export function incrementRateLimitCounter(identifier: string): void {
   const attempt = loginAttempts.get(identifier);
   if (attempt) {
@@ -177,6 +177,43 @@ export function incrementRateLimitCounter(identifier: string): void {
 // Resetar tentativas de login
 export function resetRateLimit(identifier: string): void {
   loginAttempts.delete(identifier);
+}
+
+// Rate limit para REGISTRO - incrementa em cada tentativa (válida ou não)
+export function checkRegisterRateLimit(identifier: string, maxAttempts = 5, windowMs = 15 * 60 * 1000): boolean {
+  const now = Date.now();
+  const attempt = registerAttempts.get(identifier);
+
+  if (!attempt) {
+    registerAttempts.set(identifier, { count: 0, timestamp: now });
+    return true;
+  }
+
+  if (now - attempt.timestamp > windowMs) {
+    registerAttempts.set(identifier, { count: 0, timestamp: now });
+    return true;
+  }
+
+  if (attempt.count >= maxAttempts) {
+    return false;
+  }
+
+  return true;
+}
+
+// Incrementar tentativas de REGISTRO
+export function incrementRegisterAttempts(identifier: string): void {
+  const attempt = registerAttempts.get(identifier);
+  if (attempt) {
+    attempt.count++;
+  } else {
+    registerAttempts.set(identifier, { count: 1, timestamp: Date.now() });
+  }
+}
+
+// Resetar tentativas de registro
+export function resetRegisterAttempts(identifier: string): void {
+  registerAttempts.delete(identifier);
 }
 
 // ===== NOVAS FUNCIONALIDADES DE SEGURANÇA =====
@@ -332,19 +369,41 @@ export function getActivityLogs(identifier: string, limit = 20): ActivityLog[] {
   return logs.slice(-limit).reverse();
 }
 
-// Verificar se IP está em lista negra
-const ipBlacklist = new Set<string>();
+// IP blocklist com tempo de expiração
+const ipBlacklist = new Map<string, { timestamp: number; expiresIn: number }>();
 
 export function isIPBlocked(ip: string): boolean {
-  return ipBlacklist.has(ip);
+  const entry = ipBlacklist.get(ip);
+  if (!entry) return false;
+  
+  // Verificar se o bloqueio expirou
+  const now = Date.now();
+  if (now - entry.timestamp > entry.expiresIn) {
+    ipBlacklist.delete(ip);
+    return false;
+  }
+  
+  return true;
 }
 
-export function blockIP(ip: string): void {
-  ipBlacklist.add(ip);
+export function blockIP(ip: string, durationMs = 15 * 60 * 1000): void {
+  ipBlacklist.set(ip, { timestamp: Date.now(), expiresIn: durationMs });
 }
 
 export function unblockIP(ip: string): void {
   ipBlacklist.delete(ip);
+}
+
+// Obter tempo restante de bloqueio em segundos
+export function getBlockedIPTimeRemaining(ip: string): number {
+  const entry = ipBlacklist.get(ip);
+  if (!entry) return 0;
+  
+  const now = Date.now();
+  const elapsed = now - entry.timestamp;
+  const remaining = entry.expiresIn - elapsed;
+  
+  return remaining > 0 ? Math.ceil(remaining / 1000) : 0;
 }
 
 // Validação de telefone brasileiro
@@ -387,39 +446,10 @@ export function verify2FACode(identifier: string, code: string, expiryMinutes = 
 }
 
 // ===== NOVAS FUNCIONALIDADES DE SEGURANÇA =====
-
-// Hash de Senha (simulado - usar bcrypt em produção)
-export function hashPassword(password: string): string {
-  // Em produção, usar: import bcrypt from 'bcrypt'; await bcrypt.hash(password, 10)
-  return Buffer.from(password).toString('base64');
-}
-
-export function verifyPassword(password: string, hash: string): boolean {
-  // Em produção, usar: await bcrypt.compare(password, hash)
-  return Buffer.from(password).toString('base64') === hash;
-}
-
-// CSRF Token geração
-const csrfTokens = new Map<string, { token: string; timestamp: number }>();
-
-export function generateCSRFToken(sessionId: string): string {
-  const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-  csrfTokens.set(sessionId, { token, timestamp: Date.now() });
-  return token;
-}
-
-export function verifyCSRFToken(sessionId: string, token: string): boolean {
-  const stored = csrfTokens.get(sessionId);
-  if (!stored) return false;
-  
-  // Token válido por 1 hora
-  if ((Date.now() - stored.timestamp) > 3600000) {
-    csrfTokens.delete(sessionId);
-    return false;
-  }
-  
-  return stored.token === token;
-}
+// NOTE: server-only helpers (hashing, CSRF tokens, password reset) were moved
+// to `lib/security.server.ts` to avoid bundling server-only native modules
+// (like bcrypt) into client-side code. Import server-only helpers from
+// `@/lib/security.server` in API routes and middleware.
 
 // Bloqueio de conta após tentativas falhadas
 interface AccountLockout {

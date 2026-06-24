@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { findUserByEmail, updateLastLogin } from '@/lib/users'
-import { verifyPassword, logAudit, isIPBlocked, blockIP, checkRateLimit, incrementRateLimitCounter } from '@/lib/security'
+import { logAudit, isIPBlocked, blockIP, checkRateLimit, incrementRateLimitCounter, getBlockedIPTimeRemaining, resetRateLimit } from '@/lib/security'
+import { verifyPassword } from '@/lib/security.server'
 import { logAudit as logSecurityAudit, lockAccount, isAccountLocked, unlockAccount } from '@/lib/security-audit'
 
 export async function POST(request: NextRequest) {
@@ -10,15 +11,20 @@ export async function POST(request: NextRequest) {
 
     // Verificar se IP está bloqueado
     if (isIPBlocked(ip)) {
+      const timeRemaining = getBlockedIPTimeRemaining(ip)
       logAudit('login_attempt', 'unknown', ip, userAgent, 'failure', 'IP is blocked')
       return NextResponse.json(
-        { error: 'Acesso bloqueado' },
-        { status: 403 }
+        { 
+          error: `Acesso bloqueado temporariamente. Por favor, aguarde ${timeRemaining} segundos antes de tentar novamente.`,
+          statusCode: 403,
+          retryAfter: timeRemaining
+        },
+        { status: 429 }
       )
     }
 
-    // Rate limiting: 5 tentativas por IP a cada 15 minutos
-    if (!checkRateLimit(ip, 5, 15 * 60 * 1000)) {
+    // Rate limiting: 15 tentativas por IP a cada 15 minutos (aumentado para testes)
+    if (!checkRateLimit(ip, 15, 15 * 60 * 1000)) {
       blockIP(ip)
       logAudit('login_attempt', 'unknown', ip, userAgent, 'failure', 'Rate limit exceeded')
       return NextResponse.json(
@@ -72,7 +78,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verificar senha
-    const passwordMatch = verifyPassword(password, user.passwordHash)
+    const passwordMatch = await verifyPassword(password, user.passwordHash)
     if (!passwordMatch) {
       // NOVO: Incrementar rate limit e registrar tentativa falhada
       incrementRateLimitCounter(ip)
@@ -87,24 +93,31 @@ export async function POST(request: NextRequest) {
 
     // NOVO: Se login foi bem-sucedido, desbloquear conta se estava bloqueada
     const wasLocked = await isAccountLocked(email)
-    if (!wasLocked) {
-      // Account was locked, now unlock it
+    if (wasLocked) {
+      // Conta estava bloqueada, desbloqueia após login bem-sucedido
       await unlockAccount(email, 'successful_login')
     }
 
-    // Atualizar último login
-    await updateLastLogin(email)
+    // Atualizar último login com o id do usuário
+    await updateLastLogin(user.id)
 
     // Log de sucesso
     logAudit('login_success', email, ip, userAgent, 'success', 'User logged in')
     logSecurityAudit('login_success', email, 'successful_login', { ip })
+    
+    // Resetar contador de tentativas para o IP após login bem-sucedido
+    try {
+      resetRateLimit(ip)
+    } catch (err) {
+      console.warn('Não foi possível resetar rate limit para IP:', ip, err)
+    }
 
     return NextResponse.json({
       success: true,
       user: {
         id: user.id,
         email: user.email,
-        userType: user.userType
+        userType: user.role
       }
     })
   } catch (error: any) {

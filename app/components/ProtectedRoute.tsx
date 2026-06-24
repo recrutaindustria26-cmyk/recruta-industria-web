@@ -2,10 +2,10 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useSession } from 'next-auth/react';
+// ...existing code...
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { data: session, status } = useSession();
+  // useAuth removido: NextAuth v5 App Router não suporta
   const router = useRouter();
 
   useEffect(() => {

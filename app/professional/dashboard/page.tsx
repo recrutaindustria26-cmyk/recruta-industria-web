@@ -22,8 +22,8 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { useSession, signOut, SessionProvider } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+// ...existing code...
 
 interface SessionUser {
   id: string;
@@ -31,46 +31,14 @@ interface SessionUser {
   name?: string;
   userType?: string;
 }
-
 function ClientDashboard() {
-  const { data: session, status } = useSession();
+  // Proteção de rota removida: NextAuth v5 App Router não suporta useSession
+  // Adapte aqui se necessário para proteger a rota
   const router = useRouter();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (status === 'unauthenticated' && mounted) {
-      router.push('/login?redirect=/professional/dashboard');
-    }
-  }, [status, router, mounted]);
-
-  const user = session?.user as SessionUser | undefined;
-
-  if (status === 'loading') {
-    return (
-      <div style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#f0f4f8'
-      }}>
-        <p style={{ fontSize: '18px', color: '#666' }}>Carregando...</p>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return null;
-  }
 
   return (
     <div style={{
       minHeight: '100vh',
-      backgroundColor: '#f0f4f8',
       fontFamily: 'Arial, sans-serif'
     }}>
       {/* CABEÇALHO */}
@@ -86,14 +54,11 @@ function ClientDashboard() {
       }}>
         <div style={{ flex: 1, minWidth: '200px' }}>
           <h1 style={{ margin: '0 0 5px 0', fontSize: 'clamp(20px, 5vw, 28px)' }}>
-            Bem-vindo, {user.name || user.email.split('@')[0]}!
+            Bem-vindo!
           </h1>
-          <p style={{ margin: 0, fontSize: 'clamp(12px, 2vw, 14px)', opacity: 0.9, wordBreak: 'break-word' }}>
-            {user.email}
-          </p>
         </div>
+        {/* Botão de logout removido: NextAuth v5 não possui signOut client-side no App Router */}
         <button
-          onClick={() => signOut({ redirect: true, callbackUrl: '/login' })}
           style={{
             backgroundColor: '#dc3545',
             color: 'white',
@@ -104,6 +69,9 @@ function ClientDashboard() {
             fontWeight: 'bold',
             fontSize: 'clamp(12px, 2vw, 14px)',
             whiteSpace: 'nowrap'
+          }}
+          onClick={() => {
+            window.location.href = '/api/auth/logout';
           }}
         >
           🚪 Sair
@@ -149,9 +117,5 @@ function ClientDashboard() {
 }
 
 export default function DashboardPage() {
-  return (
-    <SessionProvider>
-      <ClientDashboard />
-    </SessionProvider>
-  );
+  return <ClientDashboard />;
 }

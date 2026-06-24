@@ -26,7 +26,7 @@
 - **Build:** ✅ SUCESSO (após Node 20)
 - **Banco de Dados:** ✅ Prisma + SQLite (migrations rodadas)
 - **Autenticação:** ✅ NextAuth + Google OAuth pronto
-- **Validações:** ✅ CPF/CNPJ/Email OK (CPF agora sem pontuação)
+- **Validações:** ✅ CPF/CNPJ/Email OK (CPF agora com pontuação)
 - **Segurança:** ✅ Rate limiting, validações, EROFS tratado
 
 ### 🎯 OBJETIVO DO PROJETO

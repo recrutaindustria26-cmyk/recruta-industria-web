@@ -12,11 +12,12 @@
 "use client";
 
 import React, { useState } from 'react';
-import { useSession, signOut, SessionProvider } from 'next-auth/react';
+// ...existing code...
 import { useRouter } from 'next/navigation';
+// ...existing code...
 
 function CheckoutPageContent() {
-  const { data: session, status } = useSession();
+  // ...removido useSession, ajuste lógica conforme NextAuth v5...
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('credit');
@@ -59,6 +60,8 @@ function CheckoutPageContent() {
         // Redirecionar para painel com sucesso de upgrade
         router.push('/professional/dashboard/painel?upgrade=success');
       } else {
+        const errorText = await response.text();
+        console.error('Resposta não-JSON:', errorText);
         alert('Erro ao processar pagamento. Tente novamente.');
       }
     } catch (error) {
@@ -75,7 +78,7 @@ function CheckoutPageContent() {
           <h1 style={{ margin: '0 0 5px 0', fontSize: '28px' }}>Checkout</h1>
           <p style={{ margin: 0, fontSize: '14px', opacity: 0.9 }}>Finalize seu upgrade para Premium</p>
         </div>
-        <button onClick={() => signOut({ redirect: true, callbackUrl: '/login' })} style={{ backgroundColor: '#dc3545', color: 'white', padding: '10px 20px', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' }}>🚪 Sair</button>
+        {/* Botão de logout removido: NextAuth v5 não possui signOut client-side no App Router */}
       </div>
 
       <div style={{ padding: '40px', maxWidth: '800px', margin: '0 auto' }}>
@@ -260,9 +263,5 @@ function CheckoutPageContent() {
 }
 
 export default function CheckoutPage() {
-  return (
-    <SessionProvider>
-      <CheckoutPageContent />
-    </SessionProvider>
-  );
+  return <CheckoutPageContent />;
 }

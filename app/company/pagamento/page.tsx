@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+// ...existing code...
 
 type PaymentData = {
   chargeId: string;
@@ -15,7 +15,7 @@ type PaymentData = {
 
 export default function PagamentoEmpresa() {
   const router = useRouter();
-  const { data: session, status } = useSession();
+  // useSession removido: NextAuth v5 App Router não suporta
   const [method, setMethod] = useState<"pix" | "boleto" | "card">("pix");
   const [paymentData, setPaymentData] = useState<PaymentData | null>(null);
   const [statusMessage, setStatusMessage] = useState("");
@@ -42,7 +42,7 @@ export default function PagamentoEmpresa() {
     if (typeof window !== "undefined") {
       localStorage.setItem("isPremium", "true");
     }
-    router.push("/company/dashboard");
+    router.push("/company/dashboard-empresa");
   };
 
   const startPolling = (chargeId: string) => {

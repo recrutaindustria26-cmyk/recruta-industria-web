@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Se não for empresa, redireciona para login
-    if (user.userType !== 'company') {
+    if (user.role !== 'COMPANY') {
       return NextResponse.json({ authenticated: false, isCompany: false }, { status: 403 })
     }
 

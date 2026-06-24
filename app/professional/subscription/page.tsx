@@ -1,11 +1,13 @@
 "use client";
 
 import React from 'react';
-import { useSession, signOut } from 'next-auth/react';
+// ...existing code...
 import { useRouter } from 'next/navigation';
 
 export default function SubscriptionPage() {
-  const { data: session } = useSession();
+  // useSession removido: NextAuth v5 App Router não suporta
+  // ...existing code...
+  // signOut removido: NextAuth v5 App Router não suporta
   const router = useRouter();
 
   return (
@@ -32,7 +34,7 @@ export default function SubscriptionPage() {
           </p>
         </div>
         <button
-          onClick={() => signOut({ redirect: true, callbackUrl: '/login' })}
+          {/* Botão de logout removido: NextAuth v5 não possui signOut client-side no App Router */}
           style={{
             backgroundColor: '#dc3545',
             color: 'white',

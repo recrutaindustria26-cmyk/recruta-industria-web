@@ -1,7 +1,0 @@
-.git
-.gitignore
-README.md
-docs
-scripts
-*.log
-.env.local.example

@@ -1,372 +1,275 @@
-﻿/**
- * 🔒 PÁGINA INICIAL - BLOQUEADA PARA ALTERAÇÕES
- * ================================================
- * ⚠️ ATENÇÃO: Esta página foi finalizada e aprovada.
- * 
- * RESTRIÇÕES:
- * ✗ NÃO alterar layout ou espaçamento
- * ✗ NÃO remover componentes
- * ✗ NÃO modificar estilos CSS
- * ✗ NÃO alterar imagens ou conteúdo principal
- * 
- * ALTERAÇÕES PERMITIDAS:
- * ✓ Ajustar URLs de links
- * ✓ Atualizar conteúdo de texto (mantendo layout)
- * ✓ Adicionar novas funcionalidades sem alterar visual
- * 
- * Última atualização: 02/01/2026
- * Status: ✅ FINALIZADO E APROVADO
- */
+﻿"use client"
 
-'use client';
+import React from "react";
+import Link from "next/link";
 
-import Link from 'next/link';
-import { useState, useEffect } from 'react';
-
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
-}
+const securityModules = [
+	"SHA-256 (Senha criptografada)",
+	"Validação CPF/CNPJ (módulo-11)",
+	"Rate Limiting (5 tentativas/15min)",
+	"Auditoria de Acesso",
+	"Sanitização de Inputs (XSS)",
+	"Validação de Força de Senha",
+	"Headers de Segurança",
+	"Bloqueio de Conta após tentativas",
+	"Detecção de Login Suspeito",
+	"Timeout de Sessão",
+	"Token por E-mail",
+	"Math CAPTCHA",
+	"Bloqueio de IP",
+	"Log de Atividades"
+];
 
 export default function Home() {
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [showInstall, setShowInstall] = useState(true);
-  const [isIOS, setIsIOS] = useState(false);
-  const [isInstalled, setIsInstalled] = useState(false);
+	return (
+		<main style={{ background: "#f0f4f8", minHeight: "100vh", padding: 0 }}>
+			{/* Header */}
+			<div style={{
+				position: 'relative',
+				padding: 'clamp(10px, 2vw, 18px)', // padding reduzido
+				color: '#fff',
+				textAlign: 'center',
+				fontWeight: 'bold',
+				letterSpacing: '1px',
+				borderBottom: '2px solid #1e40af',
+				overflow: 'hidden',
+				minHeight: 90, // altura mínima reduzida
+				display: 'flex',
+				alignItems: 'center',
+				justifyContent: 'center',
+			}}>
+				<div style={{
+					position: 'absolute',
+					inset: 0,
+					background: 'linear-gradient(rgba(30,64,175,0.82), rgba(30,64,175,0.82)), url("/empresa.jpg") center/cover no-repeat',
+					zIndex: 0
+				}} />
+				<div style={{ position: 'relative', zIndex: 1, width: '100%' }}>
+					<h1 style={{ fontSize: 'clamp(1.8rem, 6vw, 2.7rem)', margin: 0, fontWeight: 900, letterSpacing: '2px' }}>
+						RECRUTA INDÚSTRIA
+					</h1>
+					<p style={{ fontSize: 'clamp(0.8rem, 2vw, 1.1rem)', margin: 0, fontWeight: 400 }}>
+						Conectamos profissionais industriais qualificados a empresas que valorizam experiência e competência.
+					</p>
+				</div>
+			</div>
 
-  useEffect(() => {
-    // Verificar se é iOS (não suporta beforeinstallprompt)
-    const isIos = /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase());
-    setIsIOS(isIos);
+			{/* Cards */}
+			<div style={{
+				display: 'flex',
+				flexWrap: 'nowrap',
+				justifyContent: 'center',
+				alignItems: 'flex-start',
+				gap: 'clamp(8px, 1vw, 18px)',
+				margin: 'clamp(32px, 5vw, 48px) auto', // Aumenta o espaço entre header e cards
+				maxWidth: 1600,
+				minWidth: 0,
+			}}>
+				{/* Card Profissional */}
+				<div style={{
+					background: '#fff',
+					borderRadius: '18px',
+					boxShadow: '0 6px 18px rgba(0,0,0,0.10)',
+					transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+					display: 'flex',
+					flexDirection: 'column',
+					cursor: 'pointer',
+					padding: '24px 40px',
+					margin: '0 12px',
+					border: '2px solid #1e40af',
+					width: 'min(700px, 94vw)'
+				}}>
+					<div style={{
+						height: 'clamp(150px, 28vw, 220px)',
+						backgroundImage: 'url("/profissional.jpg")',
+						backgroundSize: 'cover',
+						backgroundPosition: 'center',
+						borderRadius: '12px',
+						marginBottom: '4px'
+					}} />
+					<div style={{ padding: '4px 0 0 0', textAlign: 'center', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+						<h2 style={{ fontSize: 'clamp(0.95rem, 2vw, 1.1rem)', color: '#1e40af', marginBottom: '4px', fontWeight: 'bold', textDecoration: 'underline', textTransform: 'uppercase' }}>
+							Sou Profissional
+						</h2>
+						<p style={{ fontSize: 'clamp(0.62rem, 1vw, 0.75rem)', color: '#555', marginBottom: '4px', lineHeight: '1.2' }}>
+							<strong>Cadastre seu perfil, destaque suas qualificações técnicas e seja encontrado por empresas que realmente valorizam sua experiência industrial.</strong>
+						</p>
+						<Link href="/login?tipo=profissional" style={{
+							display: 'inline-block',
+							padding: '6px 14px',
+							background: '#1e40af',
+							color: '#fff',
+							textDecoration: 'none',
+							borderRadius: '6px',
+							fontWeight: 'bold',
+							fontSize: 'clamp(0.7rem, 1vw, 0.85rem)',
+							cursor: 'pointer',
+							transition: 'all 0.3s ease',
+							border: 'none',
+							marginTop: '2px'
+						}}>
+							ACESSAR CADASTRO
+						</Link>
+					</div>
+				</div>
 
-    // Verificar se já está instalado
-    const checkInstalled = () => {
-      const isStandalone = 
-        window.matchMedia('(display-mode: standalone)').matches ||
-        (window.navigator as any).standalone === true ||
-        document.referrer.includes('android-app://');
-      
-      setIsInstalled(isStandalone);
-      if (isStandalone) {
-        setShowInstall(false);
-        console.log('✓ App já está instalado');
-      }
-    };
+				{/* Card Empresa */}
+				<div style={{
+					background: '#fff',
+					borderRadius: '18px',
+					boxShadow: '0 6px 18px rgba(0,0,0,0.10)',
+					transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+					display: 'flex',
+					flexDirection: 'column',
+					cursor: 'pointer',
+					padding: '24px 40px',
+					margin: '0 12px',
+					border: '2px solid #1e40af',
+					width: 'min(700px, 94vw)'
+				}}>
+					<div style={{
+						height: 'clamp(150px, 28vw, 220px)',
+						backgroundImage: 'url("/empresa.jpg")',
+						backgroundSize: 'cover',
+						backgroundPosition: 'center',
+						borderRadius: '12px',
+						marginBottom: '4px'
+					}} />
+					<div style={{ padding: '4px 0 0 0', textAlign: 'center', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+						<h2 style={{ fontSize: 'clamp(0.95rem, 2vw, 1.1rem)', color: '#1e40af', marginBottom: '4px', fontWeight: 'bold', textDecoration: 'underline', textTransform: 'uppercase' }}>
+							Sou Empresa
+						</h2>
+						<p style={{ fontSize: 'clamp(0.62rem, 1vw, 0.75rem)', color: '#555', marginBottom: '4px', lineHeight: '1.2' }}>
+							<strong>Encontre profissionais prontos para atuar na indústria, com filtros inteligentes, segurança de dados e processos claros de seleção.</strong>
+						</p>
+						<Link href="/login?tipo=empresa" style={{
+							display: 'inline-block',
+							padding: '6px 14px',
+							background: '#1e40af',
+							color: '#fff',
+							textDecoration: 'none',
+							borderRadius: '6px',
+							fontWeight: 'bold',
+							fontSize: 'clamp(0.7rem, 1vw, 0.85rem)',
+							cursor: 'pointer',
+							transition: 'all 0.3s ease',
+							border: 'none',
+							marginTop: '2px'
+						}}>
+							CONTRATAR TALENTOS
+						</Link>
+					</div>
+				</div>
+			</div>
 
-    checkInstalled();
+			{/* Explanatory Card Section */}
+			<div style={{ display: 'flex', justifyContent: 'center', margin: 'clamp(32px, 5vw, 36px) 0 clamp(18px, 3vw, 28px) 0' }}>
+				<div style={{
+					maxWidth: 1150,
+					width: '100%',
+					backgroundColor: '#fff',
+					border: '3px solid #1e40af',
+					borderRadius: '15px',
+					boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+					textAlign: 'center',
+				}}>
+					<div style={{ fontSize: 'clamp(0.6rem, 1.2vw, 0.75rem)', color: '#333', lineHeight: '1.6' }}>
+						<p style={{ marginTop: 0, marginBottom: '6px' }}>
+							<strong>O Recruta Indústria nasceu para resolver um problema real da indústria: encontrar mão de obra qualificada, confiável e pronta para o chão de fábrica.</strong>
+						</p>
+						<p style={{ marginTop: 0, marginBottom: '6px' }}>
+							<strong>Aqui, profissionais industriais criam um perfil completo com experiência, cursos e certificações, enquanto empresas acessam talentos filtrados por área, função e nível de qualificação.</strong>
+						</p>
+						<p style={{ marginTop: 0, marginBottom: 0 }}>
+							<strong>Tudo isso em uma plataforma pensada exclusivamente para o setor industrial — sem ruído, sem currículos genéricos e sem perda de tempo.</strong>
+						</p>
+					</div>
+				</div>
+			</div>
 
-    // Verificar se o manifest está acessível
-    fetch('/manifest.json')
-      .then(res => {
-        if (res.ok) {
-          console.log('✓ Manifest.json está acessível');
-          return res.json();
-        } else {
-          console.error('❌ Manifest.json não encontrado');
-        }
-      })
-      .then(manifest => {
-        if (manifest) {
-          console.log('✓ Manifest carregado:', manifest.name);
-        }
-      })
-      .catch(err => console.error('❌ Erro ao carregar manifest:', err));
+			{/* Slogan Band */}
+			<div style={{
+				position: 'relative',
+				marginTop: 'clamp(18px, 3vw, 28px)',
+				padding: 'clamp(10px, 2.5vw, 22px)',
+				color: '#fff',
+				textAlign: 'center',
+				fontWeight: 600,
+				fontSize: 'clamp(1rem, 2.2vw, 1.35rem)',
+				letterSpacing: '1px',
+				overflow: 'hidden',
+				minHeight: 80,
+				display: 'flex',
+				alignItems: 'center',
+				justifyContent: 'center',
+			}}>
+				<div style={{
+					position: 'absolute',
+					inset: 0,
+					background: 'linear-gradient(rgba(30,64,175,0.82), rgba(30,64,175,0.82)), url("/empresa.jpg") center/cover no-repeat',
+					zIndex: 0
+				}} />
+				<span style={{ position: 'relative', zIndex: 1, width: '100%' }}>
+					Conectando Talentos ao Futuro da Indústria
+				</span>
+			</div>
 
-    // Handler para PWA no Chrome, Edge, Android
-    const handler = (e: BeforeInstallPromptEvent) => {
-      console.log('🎉 beforeinstallprompt event fired!');
-      e.preventDefault();
-      setDeferredPrompt(e as any);
-      setShowInstall(true);
-    };
+			{/* Security Modules Section */}
+			<div style={{
+				padding: 'clamp(4px, 1vw, 10px)',
+				background: '#f0f4f8',
+				display: 'flex',
+				flexWrap: 'wrap',
+				justifyContent: 'center',
+				gap: '2px',
+				maxWidth: 1600,
+				margin: '0 auto 2px auto',
+			}}>
+				{/* Security Title */}
+				<div style={{ width: '100%', textAlign: 'center', margin: '4px 0 0 0' }}>
+					<span style={{ fontSize: '0.72rem', color: '#1e40af', fontWeight: 600, letterSpacing: '1px' }}>
+						<span role="img" aria-label="cadeado" style={{ marginRight: 4 }}>🔒</span>SEGURANÇA DO SITE
+					</span>
+				</div>
 
-    // Adicionar listener para o evento
-    window.addEventListener('beforeinstallprompt', handler as any);
-    
-    // Verificar periodicamente se foi instalado
-    const interval = setInterval(checkInstalled, 2000);
+				{securityModules.map((mod, i) => (
+					<div key={i} style={{
+						background: '#fff',
+						border: '1px solid #1e40af',
+						borderRadius: '4px',
+						padding: '1px 5px',
+						fontSize: '0.62rem',
+						color: '#1e40af',
+						fontWeight: 500,
+						minWidth: 0,
+						maxWidth: 120,
+						textAlign: 'center',
+						whiteSpace: 'nowrap',
+						overflow: 'hidden',
+						textOverflow: 'ellipsis',
+						height: '18px',
+						display: 'flex',
+						alignItems: 'center',
+						justifyContent: 'center',
+						boxShadow: 'none'
+					}}>
+						{mod}
+					</div>
+				))}
+			</div>
 
-    // Verificar se service worker está ativo
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.ready.then(reg => {
-        console.log('✓ Service Worker está pronto');
-      }).catch(err => {
-        console.warn('⚠️ Service Worker não está pronto:', err);
-      });
-    }
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handler as any);
-      clearInterval(interval);
-    };
-  }, []);
-
-  const handleInstall = async () => {
-    console.log('🔵 handleInstall called', { 
-      deferredPrompt: !!deferredPrompt, 
-      isIOS, 
-      isInstalled,
-      userAgent: navigator.userAgent 
-    });
-    
-    // Verificar novamente se já está instalado
-    const isStandalone = 
-      window.matchMedia('(display-mode: standalone)').matches ||
-      (window.navigator as any).standalone === true;
-    
-    if (isStandalone) {
-      alert('✅ O app já está instalado!');
-      setIsInstalled(true);
-      return;
-    }
-
-    // Se for iOS, mostrar instruções
-    if (isIOS) {
-      handleIOSInstall();
-      return;
-    }
-
-    // Verificar se está em HTTPS ou localhost (requisito para PWA)
-    const isSecure = window.location.protocol === 'https:' || 
-                     window.location.hostname === 'localhost' ||
-                     window.location.hostname === '127.0.0.1';
-    
-    if (!isSecure) {
-      alert('⚠️ Para instalar o app, é necessário acessar via HTTPS ou localhost.\n\nAtualmente você está em: ' + window.location.protocol + '//' + window.location.hostname);
-      return;
-    }
-
-    // Tentar usar o prompt se disponível
-    if (deferredPrompt) {
-      try {
-        console.log('📱 Tentando usar prompt automático...');
-        // Verificar se o prompt ainda é válido
-        if (typeof deferredPrompt.prompt === 'function') {
-          await deferredPrompt.prompt();
-          const { outcome } = await deferredPrompt.userChoice;
-          console.log('👤 Escolha do usuário:', outcome);
-          
-          if (outcome === 'accepted') {
-            setDeferredPrompt(null);
-            setShowInstall(false);
-            setIsInstalled(true);
-            console.log('✅ Instalação aceita pelo usuário');
-            // Aguardar um pouco antes de mostrar mensagem
-            setTimeout(() => {
-              alert('✅ Instalação iniciada! O app será adicionado à sua tela inicial em breve.');
-            }, 500);
-          } else {
-            console.log('❌ Usuário cancelou a instalação');
-            showManualInstructions();
-          }
-        } else {
-          throw new Error('Prompt não disponível - função prompt() não existe');
-        }
-      } catch (error) {
-        console.error('❌ Erro ao chamar prompt:', error);
-        // Limpar o prompt inválido
-        setDeferredPrompt(null);
-        showManualInstructions();
-      }
-    } else {
-      // Se não houver prompt, mostrar instruções manuais
-      console.log('⚠️ No deferredPrompt available');
-      console.log('📋 Verificando condições PWA...');
-      
-      // Verificar se service worker está ativo
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.ready.then(() => {
-          console.log('✓ Service Worker está pronto');
-        }).catch(() => {
-          console.warn('⚠️ Service Worker não está pronto');
-        });
-      }
-      
-      // Verificar se manifest está acessível
-      fetch('/manifest.json')
-        .then(res => {
-          if (res.ok) {
-            console.log('✓ Manifest está acessível');
-          } else {
-            console.error('❌ Manifest não está acessível');
-          }
-        })
-        .catch(err => console.error('❌ Erro ao verificar manifest:', err));
-      
-      showManualInstructions();
-    }
-  };
-
-  const showManualInstructions = () => {
-    const userAgent = navigator.userAgent.toLowerCase();
-    let instructions = '';
-
-    if (/android/.test(userAgent)) {
-      instructions = 'Para instalar o app no Android:\n\n' +
-        '1. Toque no menu do navegador (⋮ ou ⋯)\n' +
-        '2. Selecione "Adicionar à tela inicial" ou "Instalar app"\n' +
-        '3. Confirme a instalação\n\n' +
-        'Ou procure o ícone de instalação (⬇️) na barra de endereço.';
-    } else if (/chrome|edge|opera/.test(userAgent)) {
-      instructions = 'Para instalar o app no Chrome/Edge:\n\n' +
-        '1. Clique no ícone de instalação (⬇️) na barra de endereço\n' +
-        'OU\n' +
-        '2. Clique no menu (⋮) → "Instalar Recruta Indústria..."\n' +
-        '3. Confirme a instalação';
-    } else {
-      instructions = 'Para instalar o app:\n\n' +
-        '1. Clique no menu do navegador\n' +
-        '2. Procure por "Instalar app" ou "Adicionar à tela inicial"\n' +
-        '3. Confirme a instalação';
-    }
-
-    alert(instructions);
-  };
-
-  // Para iOS, mostrar instrução manual
-  const handleIOSInstall = () => {
-    alert('🍎 Safari iOS:\n\n1. Toque o botão Compartilhar (↑)\n2. Selecione "Adicionar à Tela de Início"\n3. Confirme com "Adicionar"');
-  };
-  return (
-    <main style={{ backgroundColor: '#f8f9fa', height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      <div style={{ 
-        padding: 'clamp(12px, 3vw, 25px)', 
-        backgroundImage: 'url("/empresa.jpg")',
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        color: '#fff', 
-        textAlign: 'center',
-        position: 'relative',
-        overflow: 'hidden',
-        flex: '0 0 auto',
-        backgroundColor: '#4da6d6',
-        backgroundBlendMode: 'multiply'
-      }}>
-        <div style={{ background: 'rgba(30, 64, 175, 0.5)', padding: '8px 0', borderRadius: '8px' }}>
-          <h1 style={{ fontSize: 'clamp(1.3rem, 5vw, 2rem)', marginBottom: '0px', fontWeight: 'bold', letterSpacing: '1px' }}>
-            RECRUTA INDÚSTRIA
-          </h1>
-        </div>
-      </div>
-
-      <div style={{ flex: '1', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'clamp(15px, 3vw, 30px) clamp(10px, 3vw, 20px)', overflow: 'hidden' }}>
-        <div style={{ maxWidth: '1200px', width: '100%', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 'clamp(12px, 3vw, 20px)' }}>
-          <div style={{
-            background: '#fff',
-            borderRadius: '15px',
-            boxShadow: '0 10px 35px rgba(0,0,0,0.15)',
-            overflow: 'hidden',
-            transition: 'transform 0.3s ease, box-shadow 0.3s ease',
-            display: 'flex',
-            flexDirection: 'column',
-            cursor: 'pointer'
-          }}>
-            <div style={{
-              height: 'clamp(120px, 30vw, 200px)',
-              backgroundImage: 'url("/profissional.jpg")',
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              borderRadius: '15px 15px 0 0'
-            }}>
-            </div>
-            <div style={{ padding: 'clamp(15px, 3vw, 25px)', textAlign: 'center', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-              <h2 style={{ fontSize: 'clamp(1rem, 3vw, 1.3rem)', color: '#1e40af', marginBottom: '12px', fontWeight: 'bold' }}>
-                Sou Profissional
-              </h2>
-              <Link href="/login?tipo=profissional" style={{
-                display: 'inline-block',
-                padding: '10px 35px',
-                background: '#1e40af',
-                color: '#fff',
-                textDecoration: 'none',
-                borderRadius: '6px',
-                fontWeight: 'bold',
-                fontSize: 'clamp(0.75rem, 2vw, 0.85rem)',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
-                border: 'none'
-              }}>
-                ACESSAR CADASTRO
-              </Link>
-            </div>
-          </div>
-
-          <div style={{
-            background: '#fff',
-            borderRadius: '15px',
-            boxShadow: '0 10px 35px rgba(0,0,0,0.15)',
-            overflow: 'hidden',
-            transition: 'transform 0.3s ease, box-shadow 0.3s ease',
-            display: 'flex',
-            flexDirection: 'column',
-            cursor: 'pointer'
-          }}>
-            <div style={{
-              height: 'clamp(120px, 30vw, 200px)',
-              backgroundImage: 'url("/empresa.jpg")',
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              borderRadius: '15px 15px 0 0'
-            }}>
-            </div>
-            <div style={{ padding: 'clamp(15px, 3vw, 25px)', textAlign: 'center', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-              <h2 style={{ fontSize: 'clamp(1rem, 3vw, 1.3rem)', color: '#1e40af', marginBottom: '12px', fontWeight: 'bold' }}>
-                Sou Empresa
-              </h2>
-              <Link href="/login?tipo=empresa" style={{
-                display: 'inline-block',
-                padding: '10px 35px',
-                background: '#1e40af',
-                color: '#fff',
-                textDecoration: 'none',
-                borderRadius: '6px',
-                fontWeight: 'bold',
-                fontSize: 'clamp(0.75rem, 2vw, 0.85rem)',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
-                border: 'none'
-              }}>
-                CONTRATAR TALENTOS
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <footer style={{ 
-        textAlign: 'center', 
-        padding: '12px 20px', 
-        backgroundColor: '#fff', 
-        borderTop: '1px solid #e5e7eb',
-        color: '#666',
-        fontSize: '0.75rem',
-        flex: '0 0 auto'
-      }}>
-        <div style={{ marginBottom: '8px' }} suppressHydrationWarning>
-          <button 
-            onClick={isIOS ? handleIOSInstall : handleInstall}
-            suppressHydrationWarning
-            style={{
-              display: 'inline-block',
-              padding: '8px 20px',
-              background: '#1e40af',
-              color: '#fff',
-              textDecoration: 'none',
-              borderRadius: '4px',
-              fontSize: '0.8rem',
-              fontWeight: 'bold',
-              transition: 'all 0.3s ease',
-              border: 'none',
-              cursor: 'pointer',
-              opacity: 1
-            }}>
-            📥 {isInstalled ? 'APP INSTALADO' : isIOS ? 'ADICIONAR APP' : 'BAIXAR APLICATIVO'}
-          </button>
-        </div>
-        <p style={{ margin: 0 }}>
-          © 2026 Recruta Indústria
-        </p>
-      </footer>
-    </main>
-  );
+			{/* Footer */}
+			<footer style={{
+				background: '#fff',
+				color: '#1e40af',
+				textAlign: 'center',
+				fontSize: 'clamp(0.7rem, 1.2vw, 0.85rem)',
+				padding: '5px 20px',
+				borderTop: '1px solid #e5e7eb',
+				marginTop: 6
+			}}>
+				© {new Date().getFullYear()} Recruta Indústria. Todos os direitos reservados.
+			</footer>
+		</main>
+	);
 }

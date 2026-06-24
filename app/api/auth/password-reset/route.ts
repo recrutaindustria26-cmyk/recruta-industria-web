@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { findUserByEmail, updateUserPassword } from '@/lib/users'
+import { checkRateLimit, logAudit } from '@/lib/security'
 import { 
-  generatePasswordResetToken, 
+  generatePasswordResetToken,
   verifyPasswordResetToken,
   consumePasswordResetToken,
-  hashPassword,
-  checkRateLimit,
-  logAudit
-} from '@/lib/security'
+  hashPassword
+} from '@/lib/security.server'
 
 // Solicitar reset de senha
 export async function POST(request: NextRequest) {
@@ -145,8 +144,8 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Atualizar senha com hash
-    const hashedPassword = hashPassword(newPassword)
-    updateUserPassword(user.id, hashedPassword)
+    const hashedPassword = await hashPassword(newPassword)
+    await updateUserPassword(user.id, hashedPassword)
 
     // Consumir token (invalidar)
     consumePasswordResetToken(token)

@@ -237,7 +237,27 @@ export default function PainelProfissional() {
                 </div>
               )}
 
-              <button onClick={() => router.push('/professional/register')} style={{ backgroundColor: '#003366', color: 'white', padding: '12px 25px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>✏️ Atualizar Cadastro</button>
+              <button onClick={() => {
+                try {
+                  if (typeof window !== 'undefined' && profileData) {
+                    // Salva os dados do perfil no formato esperado pelo formulário de cadastro
+                    const dadosParaSalvar = {
+                      ...profileData,
+                      // manter compatibilidade com chaves esperadas
+                      nome: profileData.nome || profileData.email || '',
+                      email: profileData.email || '',
+                      telefone: profileData.telefone || '',
+                      fotoPerfil: profileData.fotoPerfil || profileData.avatar || null,
+                      curriculo: profileData.curriculo || null,
+                      experiencias: profileData.experiencias || profileData.experiencia || ''
+                    } as any;
+                    localStorage.setItem('dadosFormularioCompleto', JSON.stringify(dadosParaSalvar));
+                  }
+                } catch (e) {
+                  console.error('Erro ao salvar dados para edição do cadastro:', e);
+                }
+                router.push('/professional/register');
+              }} style={{ backgroundColor: '#003366', color: 'white', padding: '12px 25px', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>✏️ Atualizar Cadastro</button>
             </div>
           </div>
 

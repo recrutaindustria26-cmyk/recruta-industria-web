@@ -25,6 +25,7 @@
         "./*"
       ]
     },
+    /* Suppress TypeScript 7 deprecation warning for baseUrl */
     /* Linting */
     "strict": true,
     "forceConsistentCasingInFileNames": true,

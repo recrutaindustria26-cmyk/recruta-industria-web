@@ -22,6 +22,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import styles from './register.module.css';
 import PasswordStrengthMeter from '../../components/PasswordStrengthMeter';
@@ -54,15 +55,18 @@ export default function CadastroProfissional() {
     situacaoProfissional: '', areaInteresse: '', cargoDesejado: '', turnoDisponivel: '', disponibilidadeInicio: '',
     trabalhouIndustria: 'Não', tempoExperiencia: '', experiencias: '',
     recolocacao: '', pretensaoSalarial: '',
-    fotoPerfil: null as File | null, curriculo: null as File | null, atestado: null as File | null,
+    fotoPerfil: null as string | null, curriculo: null as string | null, atestado: null as string | null,
     autorizoDados: false, declaroVerdadeiro: false
   });
+
+  const [restored, setRestored] = useState(false);
 
   const [cidades, setCidades] = useState<string[]>([]);
   const listaEstados = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"];
 
   // Carrega dados do cadastro simples quando a página abre
   useEffect(() => {
+    (async () => {
     if (typeof window !== 'undefined') {
       const dadosSalvos = localStorage.getItem('dadosCadastroSimples');
       if (dadosSalvos) {
@@ -105,6 +109,44 @@ export default function CadastroProfissional() {
       if (dadosFormulario) {
         try {
           const dados = JSON.parse(dadosFormulario);
+          // Se os dados do localStorage estiverem vazios (sem valores úteis), considerar ausentes
+          const hasUsefulData = Object.values(dados).some(v => {
+            if (v === null || v === undefined) return false;
+            if (typeof v === 'string' && v.trim() === '') return false;
+            if (Array.isArray(v) && v.length === 0) return false;
+            return true;
+          });
+          if (!hasUsefulData) {
+            // Se localStorage existe mas está vazio, buscar dados no servidor
+            try {
+              const resServer = await fetch('/api/professional/profile', { credentials: 'include' });
+              if (resServer.ok) {
+                const serverProfile = await resServer.json();
+                const formDataFromServer: Partial<typeof formData> = {};
+                if (serverProfile.nome) formDataFromServer.nome = serverProfile.nome;
+                if (serverProfile.email) formDataFromServer.email = serverProfile.email;
+                if (serverProfile.telefone) formDataFromServer.telefone = serverProfile.telefone;
+                if (serverProfile.curriculo) formDataFromServer.curriculo = serverProfile.curriculo;
+                if (serverProfile.avatar) formDataFromServer.fotoPerfil = serverProfile.avatar;
+                if (serverProfile.experiencias) {
+                  try {
+                    formDataFromServer.experiencias = typeof serverProfile.experiencias === 'string' ? serverProfile.experiencias : JSON.stringify(serverProfile.experiencias) as any;
+                  } catch (e) {
+                    formDataFromServer.experiencias = serverProfile.experiencias || '' as any;
+                  }
+                }
+                setFormData(prev => ({ ...prev, ...formDataFromServer }));
+                const dadosParaSalvar = { ...formData, ...formDataFromServer, cpf: cpf, dataNascimentoDisplay: dataNascimentoValue };
+                localStorage.setItem('dadosFormularioCompleto', JSON.stringify(dadosParaSalvar));
+                console.log('✅ Dados do servidor (localStorage vazio) pré-preenchidos no formulário');
+              }
+            } catch (err) {
+              console.warn('Não foi possível buscar perfil do servidor para pré-preenchimento:', err);
+            }
+            // skip the normal localStorage restore path
+            setRestored(true);
+            return;
+          }
           console.log('📥 Restaurando do localStorage:', {dataNascimentoDisplay: dados.dataNascimentoDisplay, dataNascimento: dados.dataNascimento});
           
           // Restaurar APENAS dataNascimentoDisplay (o que o usuário vê e digita)
@@ -114,10 +156,10 @@ export default function CadastroProfissional() {
           }
           
           // Restaurar apenas os campos do formData EXCETO dataNascimento (vamos usar o display)
-          const formDataRestored = {};
-          Object.keys(formData).forEach(key => {
+          const formDataRestored: Partial<typeof formData> = {};
+          (Object.keys(formData) as Array<keyof typeof formData>).forEach(key => {
             if (key !== 'dataNascimento' && key in dados && dados[key] !== undefined) {
-              formDataRestored[key] = dados[key];
+              formDataRestored[key] = dados[key] as any;
             }
           });
           
@@ -132,12 +174,76 @@ export default function CadastroProfissional() {
         } catch (err) {
           console.error('Erro ao carregar dados do formulário:', err);
         }
+      } else {
+        // Se não houver dados no localStorage, tentar buscar do servidor (usuário autenticado)
+        try {
+          const res = await fetch('/api/professional/profile', { credentials: 'include' });
+          if (res.ok) {
+            const serverProfile = await res.json();
+            const formDataFromServer: Partial<typeof formData> = {};
+            if (serverProfile.nome) formDataFromServer.nome = serverProfile.nome;
+            if (serverProfile.email) formDataFromServer.email = serverProfile.email;
+            if (serverProfile.telefone) formDataFromServer.telefone = serverProfile.telefone;
+            if (serverProfile.curriculo) formDataFromServer.curriculo = serverProfile.curriculo;
+            if (serverProfile.avatar) formDataFromServer.fotoPerfil = serverProfile.avatar;
+            if (serverProfile.experiencias) {
+              try {
+                formDataFromServer.experiencias = typeof serverProfile.experiencias === 'string' ? serverProfile.experiencias : JSON.stringify(serverProfile.experiencias) as any;
+              } catch (e) {
+                formDataFromServer.experiencias = serverProfile.experiencias || '' as any;
+              }
+            }
+            setFormData(prev => ({ ...prev, ...formDataFromServer }));
+            // Também salvar no localStorage para edição futura
+            const dadosParaSalvar = { ...formData, ...formDataFromServer, cpf: cpf, dataNascimentoDisplay: dataNascimentoValue };
+            localStorage.setItem('dadosFormularioCompleto', JSON.stringify(dadosParaSalvar));
+            console.log('✅ Dados do servidor pré-preenchidos no formulário');
+          }
+        } catch (err) {
+          console.warn('Não foi possível buscar perfil do servidor para pré-preenchimento:', err);
+        }
       }
     }
+    // Indica que restauração foi concluída (mesmo que sem dados)
+    try { setRestored(true); } catch (e) { console.warn('Erro ao setar restored:', e); }
+
+    // Se formData estiver vazio, forçar fetch do perfil do servidor para pré-preenchimento
+    try {
+      // Espera microtask para garantir que setFormData anterior tenha sido aplicado
+      setTimeout(async () => {
+        const hasName = (Object.values(formData).some(v => typeof v === 'string' && v.trim() !== '') || dataNascimentoValue || cpf);
+        if (!hasName) {
+          try {
+            const res = await fetch('/api/professional/profile', { credentials: 'include' });
+            if (res.ok) {
+              const serverProfile = await res.json();
+              const formDataFromServer: Partial<typeof formData> = {};
+              if (serverProfile.nome) formDataFromServer.nome = serverProfile.nome;
+              if (serverProfile.email) formDataFromServer.email = serverProfile.email;
+              if (serverProfile.telefone) formDataFromServer.telefone = serverProfile.telefone;
+              if (serverProfile.curriculo) formDataFromServer.curriculo = serverProfile.curriculo;
+              if (serverProfile.avatar) formDataFromServer.fotoPerfil = serverProfile.avatar;
+              if (serverProfile.experiencias) formDataFromServer.experiencias = typeof serverProfile.experiencias === 'string' ? serverProfile.experiencias : JSON.stringify(serverProfile.experiencias) as any;
+              setFormData(prev => ({ ...prev, ...formDataFromServer }));
+              const dadosParaSalvar = { ...formData, ...formDataFromServer, cpf: cpf, dataNascimentoDisplay: dataNascimentoValue };
+              localStorage.setItem('dadosFormularioCompleto', JSON.stringify(dadosParaSalvar));
+              console.log('✅ Forçado: dados do servidor pré-preenchidos no formulário');
+            }
+          } catch (err) {
+            console.warn('Não foi possível buscar perfil do servidor para pré-preenchimento (forçado):', err);
+          }
+        }
+      }, 50);
+    } catch (e) {
+      console.warn('Erro na tentativa forçada de pré-preenchimento:', e);
+    }
+
+    })();
   }, []);
 
-  // Salvar dados do formulário no localStorage sempre que mudar
+  // Salvar dados do formulário no localStorage sempre que mudar (após restauração)
   useEffect(() => {
+    if (!restored) return;
     if (typeof window !== 'undefined') {
       // Só salvar se houver algum dado preenchido
       if (Object.values(formData).some(v => v !== '' && v !== false && v !== null) || dataNascimentoValue || cpf) {
@@ -153,7 +259,7 @@ export default function CadastroProfissional() {
         localStorage.setItem('dadosFormularioCompleto', JSON.stringify(dadosParaSalvar));
       }
     }
-  }, [formData, cpf, dataNascimentoValue]);
+  }, [formData, cpf, dataNascimentoValue, restored]);
 
   useEffect(() => {
     if (formData.estado) {
@@ -248,32 +354,41 @@ export default function CadastroProfissional() {
               userType: 'professional',
               cpf: cpfLimpo,
               name: formData.nome
+              ,
+              curricoURL: formData.curriculo || null,
+              atestadoURL: formData.atestado || null,
+              fotoPerfil: formData.fotoPerfil || null,
             })
           })
             .then(res => res.json())
-            .then(data => {
+            .then(async (data) => {
               if (data.success) {
                 console.log('✅ Usuário registrado com sucesso');
-                // Agora salvar os dados completos do formulário
-                return fetch('/api/professional/profile', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(formData)
-                });
+                // Tentar autenticar automaticamente para poder salvar o profile
+                const signResult: any = await signIn('credentials', { redirect: false, email: formData.email, password });
+                if (signResult?.ok) {
+                  // Agora salvar os dados completos do formulário (usuário está autenticado)
+                  const resProfile = await fetch('/api/professional/profile', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                  });
+                  const profileData = await resProfile.json();
+                  if (resProfile.ok && profileData.success) {
+                    console.log('✅ Perfil salvo com sucesso');
+                    localStorage.removeItem('dadosFormularioCompleto');
+                    localStorage.removeItem('dadosCadastroSimples');
+                    router.push('/professional/dashboard/painel');
+                    return;
+                  }
+                  alert('Registro bem-sucedido, mas falha ao salvar perfil: ' + (profileData.error || 'Desconhecido'));
+                  return;
+                }
+                // Se não autenticou automaticamente, direcionar para login
+                alert('Cadastro realizado. Faça login para completar o perfil.');
+                router.push('/login');
               } else {
                 throw new Error(data.error || 'Erro ao registrar');
-              }
-            })
-            .then(res => res.json())
-            .then(data => {
-              if (data.success) {
-                console.log('✅ Perfil salvo com sucesso');
-                // Limpar dados do localStorage após sucesso
-                localStorage.removeItem('dadosFormularioCompleto');
-                localStorage.removeItem('dadosCadastroSimples');
-                router.push('/professional/dashboard/painel');
-              } else {
-                alert('Erro ao salvar perfil: ' + (data.error || 'Desconhecido'));
               }
             })
             .catch(err => {
@@ -1171,17 +1286,43 @@ export default function CadastroProfissional() {
               type="file" 
               accept="image/*" 
               className={styles.input}
-              onChange={(e) => {
+              onChange={async (e) => {
                 const file = e.target.files?.[0];
-                if (file) {
-                  const reader = new FileReader();
-                  reader.onloadend = () => {
-                    setFormData({...formData, fotoPerfil: file});
-                  };
-                  reader.readAsDataURL(file);
+                if (!file) return;
+                try {
+                  const fd = new FormData();
+                  fd.append('file', file);
+                  fd.append('type', 'avatars');
+                  const res = await fetch('/api/upload', { method: 'POST', body: fd, credentials: 'include' });
+                  const data = await res.json();
+                  if (res.ok && data.success && data.file?.url) {
+                    setFormData({...formData, fotoPerfil: data.file.url});
+                  } else if (res.status === 401) {
+                    // Não autenticado - salvar localmente como dataURL para enviar depois
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                      setFormData({...formData, fotoPerfil: reader.result as string});
+                    };
+                    reader.readAsDataURL(file);
+                  } else {
+                    console.error('Upload foto falhou', data);
+                    alert('Erro ao enviar foto de perfil');
+                  }
+                } catch (err) {
+                  console.error('Erro no upload da foto:', err);
+                  alert('Erro ao enviar foto de perfil');
                 }
               }}
             />
+            {formData.fotoPerfil && (
+              <div style={{ marginTop: 8 }}>
+                {String(formData.fotoPerfil).startsWith('/uploads') ? (
+                  <img src={String(formData.fotoPerfil)} alt="Foto enviada" style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover', border: '2px solid #0066cc' }} />
+                ) : (
+                  <div style={{ padding: '6px 10px', backgroundColor: '#fff3cd', color: '#856404', borderRadius: 6 }}>Salvo localmente</div>
+                )}
+              </div>
+            )}
 
             <label className={styles.label} htmlFor="curriculo">Currículo (PDF ou Word) *</label>
             <input 
@@ -1190,17 +1331,44 @@ export default function CadastroProfissional() {
               accept=".pdf,.doc,.docx" 
               required 
               className={styles.input}
-              onChange={(e) => {
+              onChange={async (e) => {
                 const file = e.target.files?.[0];
-                if (file) {
-                  const reader = new FileReader();
-                  reader.onloadend = () => {
-                    setFormData({...formData, curriculo: file});
-                  };
-                  reader.readAsDataURL(file);
+                if (!file) return;
+                try {
+                  const fd = new FormData();
+                  fd.append('file', file);
+                  fd.append('type', 'documents');
+                  const res = await fetch('/api/upload', { method: 'POST', body: fd, credentials: 'include' });
+                  const data = await res.json();
+                  if (res.ok && data.success && data.file?.url) {
+                    // armazenar a URL do currículo no formData (string)
+                    setFormData({...formData, curriculo: data.file.url});
+                  } else if (res.status === 401) {
+                    // Não autenticado - salvar localmente como dataURL para enviar depois
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                      setFormData({...formData, curriculo: reader.result as string});
+                    };
+                    reader.readAsDataURL(file);
+                  } else {
+                    console.error('Upload curriculo falhou', data);
+                    alert('Erro ao enviar currículo');
+                  }
+                } catch (err) {
+                  console.error('Erro no upload do currículo:', err);
+                  alert('Erro ao enviar currículo');
                 }
               }}
             />
+            {formData.curriculo && (
+              <div style={{ marginTop: 8 }}>
+                {String(formData.curriculo).startsWith('/uploads') ? (
+                  <a href={String(formData.curriculo)} download style={{ backgroundColor: '#0066cc', color: 'white', padding: '6px 10px', borderRadius: 6, textDecoration: 'none' }}>Arquivo enviado — Download</a>
+                ) : (
+                  <div style={{ padding: '6px 10px', backgroundColor: '#fff3cd', color: '#856404', borderRadius: 6 }}>Salvo localmente</div>
+                )}
+              </div>
+            )}
 
             <label className={styles.label} htmlFor="atestado">Atestado de antecedentes (opcional)</label>
             <input 
@@ -1208,17 +1376,42 @@ export default function CadastroProfissional() {
               type="file" 
               accept=".pdf,.jpg,.png" 
               className={styles.input}
-              onChange={(e) => {
+              onChange={async (e) => {
                 const file = e.target.files?.[0];
-                if (file) {
-                  const reader = new FileReader();
-                  reader.onloadend = () => {
-                    setFormData({...formData, atestado: file});
-                  };
-                  reader.readAsDataURL(file);
+                if (!file) return;
+                try {
+                  const fd = new FormData();
+                  fd.append('file', file);
+                  fd.append('type', 'documents');
+                  const res = await fetch('/api/upload', { method: 'POST', body: fd, credentials: 'include' });
+                  const data = await res.json();
+                  if (res.ok && data.success && data.file?.url) {
+                    setFormData({...formData, atestado: data.file.url});
+                  } else if (res.status === 401) {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                      setFormData({...formData, atestado: reader.result as string});
+                    };
+                    reader.readAsDataURL(file);
+                  } else {
+                    console.error('Upload atestado falhou', data);
+                    alert('Erro ao enviar atestado');
+                  }
+                } catch (err) {
+                  console.error('Erro no upload do atestado:', err);
+                  alert('Erro ao enviar atestado');
                 }
               }}
             />
+            {formData.atestado && (
+              <div style={{ marginTop: 8 }}>
+                {String(formData.atestado).startsWith('/uploads') ? (
+                  <a href={String(formData.atestado)} download style={{ backgroundColor: '#0066cc', color: 'white', padding: '6px 10px', borderRadius: 6, textDecoration: 'none' }}>Atestado enviado — Download</a>
+                ) : (
+                  <div style={{ padding: '6px 10px', backgroundColor: '#fff3cd', color: '#856404', borderRadius: 6 }}>Salvo localmente</div>
+                )}
+              </div>
+            )}
 
             <p className={styles.seriousNote}>Documento opcional no cadastro inicial. A empresa contratante poderá solicitá-lo posteriormente.</p>
           </section>

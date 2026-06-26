@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '../../auth/[...nextauth]/route'
+import { authOptions } from '@/lib/auth.config'
 import { findUserByEmail } from '@/lib/users'
 
 export async function GET(request: NextRequest) {

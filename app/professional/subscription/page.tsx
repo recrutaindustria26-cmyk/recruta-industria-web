@@ -33,8 +33,8 @@ export default function SubscriptionPage() {
             Sua assinatura Premium
           </p>
         </div>
+        {/* Botão de logout removido: NextAuth v5 não possui signOut client-side no App Router */}
         <button
-          {/* Botão de logout removido: NextAuth v5 não possui signOut client-side no App Router */}
           style={{
             backgroundColor: '#dc3545',
             color: 'white',

@@ -14,11 +14,12 @@
 import React, { useState } from 'react';
 // ...existing code...
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 // ...existing code...
 
 function CheckoutPageContent() {
-  // ...removido useSession, ajuste lógica conforme NextAuth v5...
   const router = useRouter();
+  const { data: session, status } = useSession();
   const [loading, setLoading] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('credit');
   const [cardData, setCardData] = useState({
@@ -78,7 +79,6 @@ function CheckoutPageContent() {
           <h1 style={{ margin: '0 0 5px 0', fontSize: '28px' }}>Checkout</h1>
           <p style={{ margin: 0, fontSize: '14px', opacity: 0.9 }}>Finalize seu upgrade para Premium</p>
         </div>
-        {/* Botão de logout removido: NextAuth v5 não possui signOut client-side no App Router */}
       </div>
 
       <div style={{ padding: '40px', maxWidth: '800px', margin: '0 auto' }}>

@@ -43,7 +43,6 @@ function UpgradePageContent() {
             Desbloqueia todos os recursos
           </p>
         </div>
-        {/* Botão de logout removido: NextAuth v5 não possui signOut client-side no App Router */}
       </div>
 
       {/* CONTEÚDO */}

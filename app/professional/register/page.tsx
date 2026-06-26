@@ -21,7 +21,7 @@
 
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import styles from './register.module.css';
@@ -60,19 +60,81 @@ export default function CadastroProfissional() {
   });
 
   const [restored, setRestored] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(true);
+  const firstSaveRef = useRef(true);
 
   const [cidades, setCidades] = useState<string[]>([]);
+
+  const loadServerProfile = async () => {
+    try {
+      const res = await fetch('/api/professional/profile', { credentials: 'include' });
+      if (!res.ok) return null;
+      return await res.json();
+    } catch (err) {
+      console.warn('Não foi possível buscar perfil do servidor:', err);
+      return null;
+    }
+  };
+
+  const restoreStateFromData = (dados: any) => {
+    const restoredFormData: Partial<typeof formData> = {};
+    (Object.keys(formData) as Array<keyof typeof formData>).forEach(key => {
+      if (key !== 'dataNascimento' && key in dados && dados[key] !== undefined) {
+        restoredFormData[key] = dados[key] as any;
+      }
+    });
+
+    if (dados.telefone) {
+      setTelefone(dados.telefone);
+      restoredFormData.telefone = dados.telefone as any;
+    }
+    if (dados.telefone2) {
+      setTelefone2(dados.telefone2);
+      restoredFormData.telefone2 = dados.telefone2 as any;
+    }
+    if (dados.cpf) {
+      setCpf(dados.cpf);
+    }
+    if (dados.dataNascimentoDisplay) {
+      setDataNascimentoValue(dados.dataNascimentoDisplay);
+    }
+
+    setFormData(prev => ({ ...prev, ...restoredFormData }));
+  };
+
+  const saveIfUseful = (dados: any) => {
+    if (typeof window !== 'undefined') {
+      if (Object.entries(dados).some(([key, value]) => isUsefulValue(key, value))) {
+        localStorage.setItem('dadosFormularioCompleto', JSON.stringify(dados));
+      } else {
+        localStorage.removeItem('dadosFormularioCompleto');
+      }
+    }
+  };
+
+  const isStoredDataUseful = (dados: any) => {
+    return Object.entries(dados).some(([key, value]) => isUsefulValue(key, value));
+  };
+
+  const isUsefulValue = (key: string, value: any) => {
+    if (value === null || value === undefined) return false;
+    if (typeof value === 'string' && value.trim() === '') return false;
+    if (Array.isArray(value) && value.length === 0) return false;
+    if (key === 'possuiFilhos' || key === 'whatsapp' || key === 'trabalhouIndustria') return false;
+    if (key === 'autorizoDados' || key === 'declaroVerdadeiro') return false;
+    return true;
+  };
   const listaEstados = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"];
 
   // Carrega dados do cadastro simples quando a página abre
   useEffect(() => {
     (async () => {
-    if (typeof window !== 'undefined') {
+      if (typeof window === 'undefined') return;
+
       const dadosSalvos = localStorage.getItem('dadosCadastroSimples');
       if (dadosSalvos) {
         try {
           const dados = JSON.parse(dadosSalvos);
-          // Pré-preenche os campos com os dados do cadastro simples
           setFormData(prev => ({
             ...prev,
             nome: dados.nome || prev.nome,
@@ -81,172 +143,85 @@ export default function CadastroProfissional() {
           }));
           setCpf(dados.cpf || '');
           setTelefone(dados.telefone || '');
-          
-          // Preenche a senha se houver
+
           if (dados.password) {
             setPassword(dados.password);
             setConfirmPassword(dados.password);
-            setSenhaPreenchida(true); // Marca que a senha foi carregada
+            setSenhaPreenchida(true);
           } else {
-            // Se não há password nos dados, também marcar como preenchida
             setSenhaPreenchida(true);
           }
-          
+
           console.log('✅ Dados do cadastro simples carregados automaticamente:', dados);
         } catch (err) {
           console.error('Erro ao carregar dados do cadastro simples:', err);
-          // Em caso de erro, marcar como preenchida para não pedir senha
           setSenhaPreenchida(true);
         }
       } else {
-        // Se não há dados no localStorage, significa que é Google Auth
-        // Marcar senha como preenchida para não mostrar campos de senha
         setSenhaPreenchida(true);
       }
-      
-      // Carregar dados do formulário completo se houver
+
       const dadosFormulario = localStorage.getItem('dadosFormularioCompleto');
       if (dadosFormulario) {
         try {
           const dados = JSON.parse(dadosFormulario);
-          // Se os dados do localStorage estiverem vazios (sem valores úteis), considerar ausentes
-          const hasUsefulData = Object.values(dados).some(v => {
-            if (v === null || v === undefined) return false;
-            if (typeof v === 'string' && v.trim() === '') return false;
-            if (Array.isArray(v) && v.length === 0) return false;
-            return true;
-          });
-          if (!hasUsefulData) {
-            // Se localStorage existe mas está vazio, buscar dados no servidor
-            try {
-              const resServer = await fetch('/api/professional/profile', { credentials: 'include' });
-              if (resServer.ok) {
-                const serverProfile = await resServer.json();
-                const formDataFromServer: Partial<typeof formData> = {};
-                if (serverProfile.nome) formDataFromServer.nome = serverProfile.nome;
-                if (serverProfile.email) formDataFromServer.email = serverProfile.email;
-                if (serverProfile.telefone) formDataFromServer.telefone = serverProfile.telefone;
-                if (serverProfile.curriculo) formDataFromServer.curriculo = serverProfile.curriculo;
-                if (serverProfile.avatar) formDataFromServer.fotoPerfil = serverProfile.avatar;
-                if (serverProfile.experiencias) {
-                  try {
-                    formDataFromServer.experiencias = typeof serverProfile.experiencias === 'string' ? serverProfile.experiencias : JSON.stringify(serverProfile.experiencias) as any;
-                  } catch (e) {
-                    formDataFromServer.experiencias = serverProfile.experiencias || '' as any;
-                  }
-                }
-                setFormData(prev => ({ ...prev, ...formDataFromServer }));
-                const dadosParaSalvar = { ...formData, ...formDataFromServer, cpf: cpf, dataNascimentoDisplay: dataNascimentoValue };
-                localStorage.setItem('dadosFormularioCompleto', JSON.stringify(dadosParaSalvar));
-                console.log('✅ Dados do servidor (localStorage vazio) pré-preenchidos no formulário');
-              }
-            } catch (err) {
-              console.warn('Não foi possível buscar perfil do servidor para pré-preenchimento:', err);
-            }
-            // skip the normal localStorage restore path
+          if (isStoredDataUseful(dados)) {
+            console.log('📥 Restaurando do localStorage:', { dataNascimentoDisplay: dados.dataNascimentoDisplay, dataNascimento: dados.dataNascimento });
+            restoreStateFromData(dados);
+            saveIfUseful({
+              ...dados,
+              cpf: dados.cpf || '',
+              dataNascimentoDisplay: dados.dataNascimentoDisplay || ''
+            });
             setRestored(true);
             return;
           }
-          console.log('📥 Restaurando do localStorage:', {dataNascimentoDisplay: dados.dataNascimentoDisplay, dataNascimento: dados.dataNascimento});
-          
-          // Restaurar APENAS dataNascimentoDisplay (o que o usuário vê e digita)
-          if (dados.dataNascimentoDisplay) {
-            console.log('✅ Restaurando dataNascimentoDisplay:', dados.dataNascimentoDisplay);
-            setDataNascimentoValue(dados.dataNascimentoDisplay);
-          }
-          
-          // Restaurar apenas os campos do formData EXCETO dataNascimento (vamos usar o display)
-          const formDataRestored: Partial<typeof formData> = {};
-          (Object.keys(formData) as Array<keyof typeof formData>).forEach(key => {
-            if (key !== 'dataNascimento' && key in dados && dados[key] !== undefined) {
-              formDataRestored[key] = dados[key] as any;
-            }
-          });
-          
-          setFormData(prev => ({...prev, ...formDataRestored}));
-          
-          // Restaurar cpf
-          if (dados.cpf) {
-            setCpf(dados.cpf);
-          }
-          
-          console.log('✅ Dados do formulário completo restaurados');
+
+          localStorage.removeItem('dadosFormularioCompleto');
         } catch (err) {
           console.error('Erro ao carregar dados do formulário:', err);
         }
-      } else {
-        // Se não houver dados no localStorage, tentar buscar do servidor (usuário autenticado)
-        try {
-          const res = await fetch('/api/professional/profile', { credentials: 'include' });
-          if (res.ok) {
-            const serverProfile = await res.json();
-            const formDataFromServer: Partial<typeof formData> = {};
-            if (serverProfile.nome) formDataFromServer.nome = serverProfile.nome;
-            if (serverProfile.email) formDataFromServer.email = serverProfile.email;
-            if (serverProfile.telefone) formDataFromServer.telefone = serverProfile.telefone;
-            if (serverProfile.curriculo) formDataFromServer.curriculo = serverProfile.curriculo;
-            if (serverProfile.avatar) formDataFromServer.fotoPerfil = serverProfile.avatar;
-            if (serverProfile.experiencias) {
-              try {
-                formDataFromServer.experiencias = typeof serverProfile.experiencias === 'string' ? serverProfile.experiencias : JSON.stringify(serverProfile.experiencias) as any;
-              } catch (e) {
-                formDataFromServer.experiencias = serverProfile.experiencias || '' as any;
-              }
-            }
-            setFormData(prev => ({ ...prev, ...formDataFromServer }));
-            // Também salvar no localStorage para edição futura
-            const dadosParaSalvar = { ...formData, ...formDataFromServer, cpf: cpf, dataNascimentoDisplay: dataNascimentoValue };
-            localStorage.setItem('dadosFormularioCompleto', JSON.stringify(dadosParaSalvar));
-            console.log('✅ Dados do servidor pré-preenchidos no formulário');
-          }
-        } catch (err) {
-          console.warn('Não foi possível buscar perfil do servidor para pré-preenchimento:', err);
-        }
       }
-    }
-    // Indica que restauração foi concluída (mesmo que sem dados)
-    try { setRestored(true); } catch (e) { console.warn('Erro ao setar restored:', e); }
 
-    // Se formData estiver vazio, forçar fetch do perfil do servidor para pré-preenchimento
-    try {
-      // Espera microtask para garantir que setFormData anterior tenha sido aplicado
-      setTimeout(async () => {
-        const hasName = (Object.values(formData).some(v => typeof v === 'string' && v.trim() !== '') || dataNascimentoValue || cpf);
-        if (!hasName) {
-          try {
-            const res = await fetch('/api/professional/profile', { credentials: 'include' });
-            if (res.ok) {
-              const serverProfile = await res.json();
-              const formDataFromServer: Partial<typeof formData> = {};
-              if (serverProfile.nome) formDataFromServer.nome = serverProfile.nome;
-              if (serverProfile.email) formDataFromServer.email = serverProfile.email;
-              if (serverProfile.telefone) formDataFromServer.telefone = serverProfile.telefone;
-              if (serverProfile.curriculo) formDataFromServer.curriculo = serverProfile.curriculo;
-              if (serverProfile.avatar) formDataFromServer.fotoPerfil = serverProfile.avatar;
-              if (serverProfile.experiencias) formDataFromServer.experiencias = typeof serverProfile.experiencias === 'string' ? serverProfile.experiencias : JSON.stringify(serverProfile.experiencias) as any;
-              setFormData(prev => ({ ...prev, ...formDataFromServer }));
-              const dadosParaSalvar = { ...formData, ...formDataFromServer, cpf: cpf, dataNascimentoDisplay: dataNascimentoValue };
-              localStorage.setItem('dadosFormularioCompleto', JSON.stringify(dadosParaSalvar));
-              console.log('✅ Forçado: dados do servidor pré-preenchidos no formulário');
-            }
-          } catch (err) {
-            console.warn('Não foi possível buscar perfil do servidor para pré-preenchimento (forçado):', err);
-          }
-        }
-      }, 50);
-    } catch (e) {
-      console.warn('Erro na tentativa forçada de pré-preenchimento:', e);
-    }
+      const serverProfile = await loadServerProfile();
+      if (serverProfile) {
+        const normalizedProfile = {
+          ...serverProfile,
+          telefone: serverProfile.telefone || '',
+          telefone2: serverProfile.telefone2 || '',
+          whatsapp: serverProfile.whatsapp || 'Não',
+          fotoPerfil: serverProfile.fotoPerfil || serverProfile.avatar || null,
+          curriculo: serverProfile.curriculo || null,
+          experiencias: serverProfile.experiencias || serverProfile.experiencia || ''
+        };
 
+        restoreStateFromData(normalizedProfile);
+        saveIfUseful({
+          ...normalizedProfile,
+          cpf: cpf,
+          dataNascimentoDisplay: dataNascimentoValue
+        });
+        console.log('✅ Dados do servidor pré-preenchidos no formulário');
+      }
+
+      setTimeout(() => {
+        setIsRestoring(false);
+        setRestored(true);
+      }, 0);
     })();
   }, []);
 
   // Salvar dados do formulário no localStorage sempre que mudar (após restauração)
   useEffect(() => {
     if (!restored) return;
+    if (isRestoring) return;
+    if (firstSaveRef.current) {
+      firstSaveRef.current = false;
+      return;
+    }
     if (typeof window !== 'undefined') {
-      // Só salvar se houver algum dado preenchido
-      if (Object.values(formData).some(v => v !== '' && v !== false && v !== null) || dataNascimentoValue || cpf) {
+      const hasUsefulFormData = Object.entries(formData).some(([key, value]) => isUsefulValue(key, value));
+      if (hasUsefulFormData || dataNascimentoValue || cpf) {
         const dadosParaSalvar = {
           ...formData,
           cpf: cpf,

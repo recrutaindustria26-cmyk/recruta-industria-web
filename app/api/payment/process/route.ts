@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
 
     if (paymentMethod === 'credit') {
       // Usar API de pagamento com cartão
-      paymentResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3001'}/api/pagseguro/create-payment`, {
+      paymentResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/pagseguro/create-payment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
       });
     } else if (paymentMethod === 'pix') {
       // Usar API PIX do PagSeguro
-      paymentResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3001'}/api/pagseguro/pix`, {
+      paymentResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/pagseguro/pix`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
       });
     } else if (paymentMethod === 'boleto') {
       // Usar API de boleto do PagSeguro
-      paymentResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3001'}/api/pagseguro/create-payment`, {
+      paymentResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/pagseguro/create-payment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

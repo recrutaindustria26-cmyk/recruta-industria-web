@@ -40,6 +40,21 @@ interface ProfileView {
   createdAt: string;
 }
 
+const hasUsefulProfileData = (profile: ProfileData) => {
+  return Boolean(
+    profile.nome?.trim() ||
+    profile.email?.trim() ||
+    profile.telefone?.trim() ||
+    profile.whatsapp?.trim() ||
+    profile.cargoDesejado?.trim() ||
+    profile.profissao?.trim() ||
+    profile.experiencias?.trim() ||
+    profile.curriculo ||
+    profile.fotoPerfil ||
+    profile.avatar
+  );
+};
+
 export default function PainelProfissional() {
   const router = useRouter();
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
@@ -237,21 +252,31 @@ export default function PainelProfissional() {
                 </div>
               )}
 
-              <button onClick={() => {
+              <button onClick={async () => {
                 try {
-                  if (typeof window !== 'undefined' && profileData) {
-                    // Salva os dados do perfil no formato esperado pelo formulário de cadastro
-                    const dadosParaSalvar = {
-                      ...profileData,
-                      // manter compatibilidade com chaves esperadas
-                      nome: profileData.nome || profileData.email || '',
-                      email: profileData.email || '',
-                      telefone: profileData.telefone || '',
-                      fotoPerfil: profileData.fotoPerfil || profileData.avatar || null,
-                      curriculo: profileData.curriculo || null,
-                      experiencias: profileData.experiencias || profileData.experiencia || ''
-                    } as any;
-                    localStorage.setItem('dadosFormularioCompleto', JSON.stringify(dadosParaSalvar));
+                  if (typeof window !== 'undefined') {
+                    const res = await fetch('/api/professional/profile', { credentials: 'include' });
+                    let profile = profileData;
+                    if (res.ok) {
+                      profile = await res.json();
+                    }
+
+                    if (profile && hasUsefulProfileData(profile)) {
+                      const dadosParaSalvar = {
+                        ...profile,
+                        nome: profile.nome || profile.email || '',
+                        email: profile.email || '',
+                        telefone: profile.telefone || '',
+                        telefone2: profile.telefone2 || '',
+                        whatsapp: profile.whatsapp || 'Não',
+                        fotoPerfil: profile.fotoPerfil || profile.avatar || null,
+                        curriculo: profile.curriculo || null,
+                        experiencias: profile.experiencias || profile.experiencia || ''
+                      } as any;
+                      localStorage.setItem('dadosFormularioCompleto', JSON.stringify(dadosParaSalvar));
+                    } else {
+                      localStorage.removeItem('dadosFormularioCompleto');
+                    }
                   }
                 } catch (e) {
                   console.error('Erro ao salvar dados para edição do cadastro:', e);

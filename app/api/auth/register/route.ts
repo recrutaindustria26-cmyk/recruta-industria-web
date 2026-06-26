@@ -101,6 +101,8 @@ export async function POST(request: NextRequest) {
       // Documentos (URLs após upload)
       curricoURL,
       atestadoURL,
+      // Foto de perfil (URL ou dataURL)
+      fotoPerfil,
       // Mensagem
       mensagemEmpresas,
     } = body
@@ -248,6 +250,9 @@ export async function POST(request: NextRequest) {
           // Documentos
           curricoURL: curricoURL || null,
           atestadoURL: atestadoURL || null,
+
+          // Foto de perfil
+          avatar: fotoPerfil || null,
           
           // Mensagem
           mensagemEmpresas: mensagemEmpresas || null,
@@ -263,7 +268,7 @@ export async function POST(request: NextRequest) {
       } catch (profileError: any) {
         console.error('Erro ao criar Profile para profissional:', profileError)
         // Log do erro mas continua - o User foi criado e é o importante
-        logAudit('profile_creation_failed', email, ip, userAgent, 'warning', `Profile creation failed: ${profileError?.message}`)
+        logAudit('profile_creation_failed', email, ip, userAgent, 'failure', `Profile creation failed: ${profileError?.message}`)
       }
     }
 

@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-// ...existing code...
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 
 interface SessionUser {
   id: string;
@@ -12,8 +12,8 @@ interface SessionUser {
 }
 
 function ClientDashboard() {
-  // useAuth removido: NextAuth v5 App Router não suporta
   const router = useRouter();
+  const { data: session, status } = useSession();
   const [mounted, setMounted] = useState(false);
   const [isCheckingRegistration, setIsCheckingRegistration] = useState(true);
   const [registrationComplete, setRegistrationComplete] = useState(false);
@@ -96,8 +96,8 @@ function ClientDashboard() {
             <h1 style={{ margin: 0, fontSize: '24px', fontWeight: 900 }}>RECRUTA INDÚSTRIA</h1>
             <p style={{ margin: '5px 0 0 0', fontSize: '14px', color: '#ccc' }}>Painel Empresarial</p>
           </div>
+          {/* Botão de logout removido: NextAuth v5 não possui signOut client-side no App Router */}
           <button
-            {/* Botão de logout removido: NextAuth v5 não possui signOut client-side no App Router */}
             style={{
               backgroundColor: '#ef4444',
               color: 'white',
@@ -228,7 +228,6 @@ function ClientDashboard() {
             <p style={{ margin: '5px 0 0 0', fontSize: '12px', color: '#ccc' }}>Empresa</p>
           </div>
           <button
-            {/* Botão de logout removido: NextAuth v5 não possui signOut client-side no App Router */}
             style={{
               backgroundColor: '#ef4444',
               color: 'white',

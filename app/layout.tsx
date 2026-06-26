@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import ServiceWorkerRegister from "./ServiceWorkerRegister";
 import ManifestInjector from "./ManifestInjector";
+import Providers from "./providers";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -52,7 +53,7 @@ export default function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <ManifestInjector />
         <ServiceWorkerRegister />
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

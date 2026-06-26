@@ -57,7 +57,6 @@ function ClientDashboard() {
             Bem-vindo!
           </h1>
         </div>
-        {/* Botão de logout removido: NextAuth v5 não possui signOut client-side no App Router */}
         <button
           style={{
             backgroundColor: '#dc3545',

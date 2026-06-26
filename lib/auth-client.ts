@@ -1,3 +1,3 @@
-import { createAuthClient } from "next-auth/client"
+import { signIn, signOut, useSession } from "next-auth/react"
 
-export const { useSession, signIn, signOut } = createAuthClient()
+export { signIn, signOut, useSession }

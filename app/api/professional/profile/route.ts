@@ -1,3 +1,15 @@
+
+
+
+
+
+
+
+
+
+
+
+
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getServerSession } from 'next-auth';
@@ -48,7 +60,8 @@ export async function GET(request: NextRequest) {
         whatsapp: user.profile.whatsapp || '',
         fotoPerfil: user.profile.avatar || null,
         avatar: user.profile.avatar || null,
-        curriculo: user.profile.portfolio || null,
+        curriculo: user.profile.curricoURL || user.profile.portfolio || null,
+        atestado: user.profile.atestadoURL || null,
         dataVisualizacoes: user.profile.viewCount || 0,
         plano: 'free'
       });
@@ -105,7 +118,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    console.log('>> /api/professional/profile POST - session user:', session.user?.email);
+
     const body = await request.json();
+
+    // Logar campos relevantes para debug
+    console.log('>> /api/professional/profile POST - body keys:', Object.keys(body));
+    console.log('>> fotoPerfil (preview):', typeof body.fotoPerfil === 'string' ? String(body.fotoPerfil).slice(0, 200) : body.fotoPerfil);
+    console.log('>> curriculo / curricoURL (preview):', typeof body.curriculo === 'string' ? String(body.curriculo).slice(0, 200) : body.curriculo, typeof body.curricoURL === 'string' ? String(body.curricoURL).slice(0,200) : body.curricoURL);
+    console.log('>> atestado / atestadoURL (preview):', typeof body.atestado === 'string' ? String(body.atestado).slice(0,200) : body.atestado, typeof body.atestadoURL === 'string' ? String(body.atestadoURL).slice(0,200) : body.atestadoURL);
+
 
     // Buscar usuário
     const user = await prisma.user.findUnique({
@@ -121,7 +143,8 @@ export async function POST(request: NextRequest) {
 
     // Clean data values to ensure only strings or null are passed to Prisma
     const cleanedAvatar = getStringValue(body.fotoPerfil) || getStringValue(body.avatar) || null;
-    const cleanedPortfolio = getStringValue(body.curriculo) || getStringValue(body.portfolio) || null;
+    const cleanedPortfolio = getStringValue(body.curriculo) || getStringValue(body.curricoURL) || getStringValue(body.portfolio) || null;
+    const cleanedAtestado = getStringValue(body.atestado) || getStringValue(body.atestadoURL) || null;
 
     // Criar ou atualizar perfil profissional
     const profile = await prisma.profile.upsert({
@@ -138,6 +161,8 @@ export async function POST(request: NextRequest) {
         experience: body.tempoExperiencia || body.experiencias || '',
         avatar: cleanedAvatar,
         portfolio: cleanedPortfolio,
+        curricoURL: cleanedPortfolio,
+        atestadoURL: cleanedAtestado,
         updatedAt: new Date()
       },
       create: {
@@ -152,7 +177,9 @@ export async function POST(request: NextRequest) {
         skills: body.habilidades ? JSON.stringify(body.habilidades.split(',').map((h: string) => h.trim())) : null,
         experience: body.tempoExperiencia || body.experiencias || '',
         avatar: cleanedAvatar,
-        portfolio: cleanedPortfolio
+        portfolio: cleanedPortfolio,
+        curricoURL: cleanedPortfolio,
+        atestadoURL: cleanedAtestado
       }
     });
 
@@ -186,7 +213,7 @@ export async function POST(request: NextRequest) {
         whatsapp: profile.whatsapp,
         avatar: profile.avatar,
         fotoPerfil: profile.avatar,
-        curriculo: profile.portfolio,
+        curriculo: profile.curricoURL || profile.portfolio,
         dataVisualizacoes: profile.viewCount,
         plano: 'free'
       }

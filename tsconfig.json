@@ -26,7 +26,7 @@
       ]
     },
     /* Suppress TypeScript 7 deprecation warning for baseUrl */
-    "ignoreDeprecations": "6.0",
+    "ignoreDeprecations": "5.0",
     /* Linting */
     "strict": true,
     "forceConsistentCasingInFileNames": true,

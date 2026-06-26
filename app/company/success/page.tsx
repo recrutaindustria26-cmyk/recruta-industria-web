@@ -74,7 +74,7 @@ export default function SucessoEmpresa() {
           </div>
         </div>
 
-        {/* BOTÃO PRINCIPAL */}
+        {/* BUTTON PRINCIPAL */}
         <div style={{ textAlign: 'center' }}>
           <button 
             onClick={() => router.push('/company/dashboard-empresa')}

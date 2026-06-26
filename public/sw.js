@@ -1,83 +1,77 @@
-const CACHE_NAME = "recruta-industria-v1";
+const CACHE_NAME = 'recruta-industria-v1';
 const urlsToCache = [
-  "/",
-  "/manifest.json",
-  "/icon-192.png",
-  "/icon-512.png",
+  '/',
+  '/professional/register',
+  '/professional/checkout',
+  '/login',
 ];
 
-// Instalar Service Worker e cachear recursos
-self.addEventListener("install", (event) => {
-  console.log("🔧 Service Worker: Installing...");
-  
+// Instalar service worker
+self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      console.log("📦 Service Worker: Caching app shell");
-      return cache.addAll(urlsToCache).catch((error) => {
-        console.log("⚠️ Cache add failed:", error);
-        // Continuar mesmo se falhar adicionar URLs
-      });
-    })
+    caches.open(CACHE_NAME)
+      .then((cache) => {
+        console.log('Cache aberto');
+        return cache.addAll(urlsToCache);
+      })
+      .catch((err) => console.error('Erro ao cachear:', err))
   );
-  
   self.skipWaiting();
 });
 
-// Ativar Service Worker e limpar caches antigos
-self.addEventListener("activate", (event) => {
-  console.log("✅ Service Worker: Activating...");
-  
+// Ativar service worker
+self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheName !== CACHE_NAME) {
-            console.log("🗑️ Service Worker: Deleting old cache", cacheName);
+            console.log('Deletando cache antigo:', cacheName);
             return caches.delete(cacheName);
           }
         })
       );
     })
   );
-  
   self.clients.claim();
 });
 
 // Interceptar requisições
-self.addEventListener("fetch", (event) => {
-  // Estratégia: Cache first, network fallback
-  if (event.request.method !== "GET") {
+self.addEventListener('fetch', (event) => {
+  // Apenas GET
+  if (event.request.method !== 'GET') {
     return;
   }
 
   event.respondWith(
-    caches
-      .match(event.request)
+    caches.match(event.request)
       .then((response) => {
-        // Se encontrou no cache, retorna
+        // Se existe no cache, retornar
         if (response) {
           return response;
         }
 
-        return fetch(event.request).then((response) => {
-          // Se não é uma resposta válida, retorna
-          if (!response || response.status !== 200 || response.type === "error") {
+        return fetch(event.request)
+          .then((response) => {
+            // Não cachear requisições inválidas
+            if (!response || response.status !== 200 || response.type === 'error') {
+              return response;
+            }
+
+            // Clonar response
+            const responseToCache = response.clone();
+
+            caches.open(CACHE_NAME)
+              .then((cache) => {
+                cache.put(event.request, responseToCache);
+              });
+
             return response;
-          }
-
-          // Cachear a resposta
-          const responseToCache = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
+          })
+          .catch(() => {
+            // Se falhar e não existir no cache, retornar página offline
+            return caches.match('/offline.html').catch(() => new Response('Offline'));
           });
-
-          return response;
-        });
-      })
-      .catch(() => {
-        // Network request falhou, retornar página em cache ou erro
-        console.log("📡 Network request falhou para:", event.request.url);
-        // Poderia retornar uma página offline aqui
       })
   );
 });

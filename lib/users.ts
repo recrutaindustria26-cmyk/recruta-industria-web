@@ -1,6 +1,8 @@
+import fs from 'fs'
+import path from 'path'
 import crypto from 'crypto'
-import { hashPassword as securityHashPassword, verifyPassword } from './security.server'
-import { prisma } from './db'
+
+const USERS_FILE = path.join(process.cwd(), 'data', 'users.json')
 
 export type UserType = 'professional' | 'company'
 
@@ -23,106 +25,104 @@ export interface User {
   lastLogin?: string
 }
 
-// Garantir banco de dados (Prisma)
-async function ensureDb() {
-  // Prisma já gerencia a conexão automaticamente
-  return true
+// Garantir diretório de dados
+function ensureDataDir() {
+  const dataDir = path.join(process.cwd(), 'data')
+  if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true })
+  }
 }
 
 // Ler todos os usuários
-async function readUsers(): Promise<any[]> {
+function readUsers(): User[] {
+  ensureDataDir()
   try {
-    return await prisma.user.findMany()
+    if (!fs.existsSync(USERS_FILE)) {
+      return []
+    }
+    const data = fs.readFileSync(USERS_FILE, 'utf-8')
+    return JSON.parse(data)
   } catch {
     return []
   }
 }
+
+// Salvar usuários
+function writeUsers(users: User[]) {
+  ensureDataDir()
+  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf-8')
+}
+
 // Hash de senha
-async function hashPassword(password: string): Promise<string> {
-  return await securityHashPassword(password)
+function hashPassword(password: string): string {
+  const salt = process.env.PASSWORD_SALT || 'recruta-industria-salt-super-secreto-2025-mudeme'
+  return crypto.createHash('sha256').update(password + salt).digest('hex')
 }
 
 // Comparar senha
-async function comparePassword(password: string, hash: string): Promise<boolean> {
-  return await verifyPassword(password, hash)
+function comparePassword(password: string, hash: string): boolean {
+  return hashPassword(password) === hash
 }
 
 // Buscar usuário por email
-export async function findUserByEmail(email: string): Promise<any | null> {
-  try {
-    return await prisma.user.findUnique({
-      where: { email: email.toLowerCase() },
-    })
-  } catch {
-    return null
-  }
+export function findUserByEmail(email: string): User | null {
+  const users = readUsers()
+  return users.find(u => u.email.toLowerCase() === email.toLowerCase()) || null
 }
 
 // Buscar usuário por Google ID
-export async function findUserByGoogleId(googleId: string): Promise<any | null> {
-  try {
-    return await prisma.user.findFirst({
-      where: { id: googleId }, // Ajustado: Google ID é armazenado como userId
-    })
-  } catch {
-    return null
-  }
+export function findUserByGoogleId(googleId: string): User | null {
+  const users = readUsers()
+  return users.find(u => u.googleId === googleId) || null
 }
 
 // Buscar usuário por ID
-export async function findUserById(id: string): Promise<any | null> {
-  try {
-    return await prisma.user.findUnique({
-      where: { id },
-    })
-  } catch {
-    return null
-  }
+export function findUserById(id: string): User | null {
+  const users = readUsers()
+  return users.find(u => u.id === id) || null
 }
 
 // Criar novo usuário
-export async function createUser(
+export function createUser(
   email: string,
   password: string | null,
-  userType: 'professional' | 'company',
+  userType: UserType,
   googleId?: string,
   googleEmail?: string
-): Promise<any> {
+): User {
+  const users = readUsers()
+  
   // Verificar se email já existe
-  const existing = await findUserByEmail(email)
-  if (existing) {
+  if (users.some(u => u.email.toLowerCase() === email.toLowerCase())) {
     throw new Error('Email já cadastrado')
   }
 
-  const passwordHash = password ? await hashPassword(password) : null
+  const user: User = {
+    id: crypto.randomUUID(),
+    email,
+    passwordHash: password ? hashPassword(password) : '',
+    userType,
+    googleId,
+    googleEmail,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }
 
-  return await prisma.user.create({
-    data: {
-      email: email.toLowerCase(),
-      name: googleEmail || email,
-      passwordHash,
-      role: userType === 'company' ? 'COMPANY' : 'PROFESSIONAL',
-      image: null,
-    },
-  })
+  users.push(user)
+  writeUsers(users)
+
+  return user
 }
 
-// Validar credenciais - verifica email e senha
-export async function validateCredentials(email: string, password: string): Promise<any | null> {
-  const user = await findUserByEmail(email)
+// Validar credenciais
+export function validateCredentials(email: string, password: string): User | null {
+  const user = findUserByEmail(email)
   
-  if (!user) {
+  if (!user || !user.passwordHash) {
     return null
   }
 
-  // Verifica se o usuário tem passwordHash (usuários com OAuth podem não ter)
-  if (!user.passwordHash) {
-    return null
-  }
-
-  // Verifica a senha
-  const match = await comparePassword(password, user.passwordHash)
-  if (!match) {
+  if (!comparePassword(password, user.passwordHash)) {
     return null
   }
 
@@ -130,64 +130,43 @@ export async function validateCredentials(email: string, password: string): Prom
 }
 
 // Atualizar último login
-export async function updateLastLogin(userId: string): Promise<void> {
-  try {
-    await prisma.user.update({
-      where: { id: userId },
-      data: { lastLogin: new Date(), updatedAt: new Date() },
-    })
-  } catch {
-    // Silenciosamente ignorar se não existir
+export function updateLastLogin(userId: string): void {
+  const users = readUsers()
+  const user = users.find(u => u.id === userId)
+  
+  if (user) {
+    user.lastLogin = new Date().toISOString()
+    user.updatedAt = new Date().toISOString()
+    writeUsers(users)
   }
 }
 
 // Atualizar dados do usuário
-export async function updateUser(userId: string, data: Partial<any>): Promise<any | null> {
-  try {
-    return await prisma.user.update({
-      where: { id: userId },
-      data: {
-        ...data,
-        updatedAt: new Date(),
-      },
-    })
-  } catch {
-    return null
-  }
+export function updateUser(userId: string, data: Partial<User>): User | null {
+  const users = readUsers()
+  const index = users.findIndex(u => u.id === userId)
+  
+  if (index === -1) return null
+
+  const user = users[index]
+  Object.assign(user, { ...data, updatedAt: new Date().toISOString() })
+  writeUsers(users)
+
+  return user
 }
 
 // Deletar usuário (apenas para testes)
-export async function deleteUser(userId: string): Promise<boolean> {
-  try {
-    await prisma.user.delete({
-      where: { id: userId },
-    })
-    return true
-  } catch {
-    return false
-  }
-}
-
-// Atualizar senha do usuário
-export async function updateUserPassword(userId: string, newPasswordHash: string): Promise<any | null> {
-  try {
-    return await prisma.user.update({
-      where: { id: userId },
-      data: {
-        passwordHash: newPasswordHash,
-        updatedAt: new Date(),
-      },
-    })
-  } catch {
-    return null
-  }
+export function deleteUser(userId: string): boolean {
+  const users = readUsers()
+  const filtered = users.filter(u => u.id !== userId)
+  
+  if (filtered.length === users.length) return false
+  
+  writeUsers(filtered)
+  return true
 }
 
 // Exportar dados para backup
-export async function exportAllUsers(): Promise<any[]> {
-  try {
-    return await prisma.user.findMany()
-  } catch {
-    return []
-  }
+export function exportAllUsers(): User[] {
+  return readUsers()
 }

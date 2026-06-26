@@ -1,16 +1,5 @@
 // Validações de segurança e sanitização de dados
 
-// CORS e Headers de Segurança
-export const securityHeaders = {
-  'X-Content-Type-Options': 'nosniff',
-  'X-Frame-Options': 'DENY',
-  'X-XSS-Protection': '1; mode=block',
-  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
-  'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'",
-  'Referrer-Policy': 'strict-origin-when-cross-origin',
-  'Permissions-Policy': 'geolocation=(), microphone=(), camera=()',
-};
-
 // Validar email
 export function isValidEmail(email: string): boolean {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -133,29 +122,20 @@ export function isValidCPF(cpf: string): boolean {
   return true;
 }
 
-// Formatar CPF com pontos e hífen (XXX.XXX.XXX-XX)
-export function formatCPF(cpf: string): string {
-  const cleaned = cpf.replace(/\D/g, '');
-  if (cleaned.length !== 11) return cpf;
-  return cleaned.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
-}
-
-// Rate limiting simples em memória - separado por tipo de operação
+// Rate limiting simples em memória
 const loginAttempts = new Map<string, { count: number; timestamp: number }>();
-const registerAttempts = new Map<string, { count: number; timestamp: number }>();
 
-// Rate limit para LOGIN - incrementa apenas em falhas de autenticação
 export function checkRateLimit(identifier: string, maxAttempts = 5, windowMs = 15 * 60 * 1000): boolean {
   const now = Date.now();
   const attempt = loginAttempts.get(identifier);
 
   if (!attempt) {
-    loginAttempts.set(identifier, { count: 0, timestamp: now });
+    loginAttempts.set(identifier, { count: 1, timestamp: now });
     return true;
   }
 
   if (now - attempt.timestamp > windowMs) {
-    loginAttempts.set(identifier, { count: 0, timestamp: now });
+    loginAttempts.set(identifier, { count: 1, timestamp: now });
     return true;
   }
 
@@ -163,57 +143,13 @@ export function checkRateLimit(identifier: string, maxAttempts = 5, windowMs = 1
     return false;
   }
 
+  attempt.count++;
   return true;
-}
-
-// Incrementar tentativas de LOGIN (apenas em falha de autenticação)
-export function incrementRateLimitCounter(identifier: string): void {
-  const attempt = loginAttempts.get(identifier);
-  if (attempt) {
-    attempt.count++;
-  }
 }
 
 // Resetar tentativas de login
 export function resetRateLimit(identifier: string): void {
   loginAttempts.delete(identifier);
-}
-
-// Rate limit para REGISTRO - incrementa em cada tentativa (válida ou não)
-export function checkRegisterRateLimit(identifier: string, maxAttempts = 5, windowMs = 15 * 60 * 1000): boolean {
-  const now = Date.now();
-  const attempt = registerAttempts.get(identifier);
-
-  if (!attempt) {
-    registerAttempts.set(identifier, { count: 0, timestamp: now });
-    return true;
-  }
-
-  if (now - attempt.timestamp > windowMs) {
-    registerAttempts.set(identifier, { count: 0, timestamp: now });
-    return true;
-  }
-
-  if (attempt.count >= maxAttempts) {
-    return false;
-  }
-
-  return true;
-}
-
-// Incrementar tentativas de REGISTRO
-export function incrementRegisterAttempts(identifier: string): void {
-  const attempt = registerAttempts.get(identifier);
-  if (attempt) {
-    attempt.count++;
-  } else {
-    registerAttempts.set(identifier, { count: 1, timestamp: Date.now() });
-  }
-}
-
-// Resetar tentativas de registro
-export function resetRegisterAttempts(identifier: string): void {
-  registerAttempts.delete(identifier);
 }
 
 // ===== NOVAS FUNCIONALIDADES DE SEGURANÇA =====
@@ -369,41 +305,19 @@ export function getActivityLogs(identifier: string, limit = 20): ActivityLog[] {
   return logs.slice(-limit).reverse();
 }
 
-// IP blocklist com tempo de expiração
-const ipBlacklist = new Map<string, { timestamp: number; expiresIn: number }>();
+// Verificar se IP está em lista negra
+const ipBlacklist = new Set<string>();
 
 export function isIPBlocked(ip: string): boolean {
-  const entry = ipBlacklist.get(ip);
-  if (!entry) return false;
-  
-  // Verificar se o bloqueio expirou
-  const now = Date.now();
-  if (now - entry.timestamp > entry.expiresIn) {
-    ipBlacklist.delete(ip);
-    return false;
-  }
-  
-  return true;
+  return ipBlacklist.has(ip);
 }
 
-export function blockIP(ip: string, durationMs = 15 * 60 * 1000): void {
-  ipBlacklist.set(ip, { timestamp: Date.now(), expiresIn: durationMs });
+export function blockIP(ip: string): void {
+  ipBlacklist.add(ip);
 }
 
 export function unblockIP(ip: string): void {
   ipBlacklist.delete(ip);
-}
-
-// Obter tempo restante de bloqueio em segundos
-export function getBlockedIPTimeRemaining(ip: string): number {
-  const entry = ipBlacklist.get(ip);
-  if (!entry) return 0;
-  
-  const now = Date.now();
-  const elapsed = now - entry.timestamp;
-  const remaining = entry.expiresIn - elapsed;
-  
-  return remaining > 0 ? Math.ceil(remaining / 1000) : 0;
 }
 
 // Validação de telefone brasileiro
@@ -443,194 +357,4 @@ export function verify2FACode(identifier: string, code: string, expiryMinutes = 
   }
   
   return false;
-}
-
-// ===== NOVAS FUNCIONALIDADES DE SEGURANÇA =====
-// NOTE: server-only helpers (hashing, CSRF tokens, password reset) were moved
-// to `lib/security.server.ts` to avoid bundling server-only native modules
-// (like bcrypt) into client-side code. Import server-only helpers from
-// `@/lib/security.server` in API routes and middleware.
-
-// Bloqueio de conta após tentativas falhadas
-interface AccountLockout {
-  attempts: number;
-  lastAttempt: number;
-  locked: boolean;
-}
-
-const accountLockouts = new Map<string, AccountLockout>();
-
-export function incrementFailedAttempts(email: string): void {
-  const lockout = accountLockouts.get(email) || { attempts: 0, lastAttempt: Date.now(), locked: false };
-  lockout.attempts++;
-  lockout.lastAttempt = Date.now();
-  
-  if (lockout.attempts >= 5) {
-    lockout.locked = true;
-  }
-  
-  accountLockouts.set(email, lockout);
-}
-
-export function isAccountLocked(email: string): boolean {
-  const lockout = accountLockouts.get(email);
-  if (!lockout) return false;
-  
-  if (lockout.locked) {
-    // Desbloquear após 15 minutos
-    if ((Date.now() - lockout.lastAttempt) > 900000) {
-      accountLockouts.delete(email);
-      return false;
-    }
-    return true;
-  }
-  
-  return false;
-}
-
-export function resetFailedAttempts(email: string): void {
-  accountLockouts.delete(email);
-}
-
-// Gerador de token seguro para reset de senha
-const passwordResetTokens = new Map<string, { token: string; email: string; timestamp: number }>();
-
-export function generatePasswordResetToken(email: string): string {
-  const token = Buffer.from(`${email}-${Date.now()}-${Math.random()}`).toString('base64');
-  passwordResetTokens.set(token, { token, email, timestamp: Date.now() });
-  return token;
-}
-
-export function verifyPasswordResetToken(token: string): string | null {
-  const stored = passwordResetTokens.get(token);
-  if (!stored) return null;
-  
-  // Token válido por 1 hora
-  if ((Date.now() - stored.timestamp) > 3600000) {
-    passwordResetTokens.delete(token);
-    return null;
-  }
-  
-  return stored.email;
-}
-
-export function consumePasswordResetToken(token: string): void {
-  passwordResetTokens.delete(token);
-}
-
-// Detecção de anomalias (login em novo IP/device)
-interface LoginRecord {
-  ip: string;
-  userAgent: string;
-  timestamp: number;
-}
-
-const loginHistory = new Map<string, LoginRecord[]>();
-
-export function recordLogin(email: string, ip: string, userAgent: string): void {
-  const record: LoginRecord = { ip, userAgent, timestamp: Date.now() };
-  const history = loginHistory.get(email) || [];
-  history.push(record);
-  
-  // Manter últimos 50 logins
-  if (history.length > 50) {
-    history.shift();
-  }
-  
-  loginHistory.set(email, history);
-}
-
-export function detectAnomalousLogin(email: string, ip: string, userAgent: string): boolean {
-  const history = loginHistory.get(email) || [];
-  
-  if (history.length === 0) return false;
-  
-  // Verificar se IP/userAgent já foi visto
-  const hasSeenBefore = history.some(
-    record => record.ip === ip && record.userAgent === userAgent
-  );
-  
-  // Se não viu antes e temos histórico, é anômalo
-  return !hasSeenBefore && history.length > 0;
-}
-
-// Validação de entrada robusta
-export function validateInput(input: any, type: 'email' | 'password' | 'text' | 'number'): boolean {
-  if (typeof input !== 'string' && type !== 'number') return false;
-  
-  switch (type) {
-    case 'email':
-      return isValidEmail(input);
-    case 'password':
-      return input.length >= 8;
-    case 'text':
-      return input.length > 0 && input.length <= 500;
-    case 'number':
-      return !isNaN(Number(input));
-    default:
-      return false;
-  }
-}
-
-// Proteção contra brute force em API
-const apiRateLimits = new Map<string, { count: number; resetTime: number }>();
-
-export function checkAPIRateLimit(identifier: string, limit = 100, windowMs = 60000): boolean {
-  const now = Date.now();
-  const current = apiRateLimits.get(identifier);
-  
-  if (!current || now > current.resetTime) {
-    apiRateLimits.set(identifier, { count: 1, resetTime: now + windowMs });
-    return true;
-  }
-  
-  if (current.count < limit) {
-    current.count++;
-    return true;
-  }
-  
-  return false;
-}
-
-// Auditoria com timestamp e detalhes
-interface AuditLog {
-  timestamp: number;
-  action: string;
-  email: string;
-  ip: string;
-  userAgent: string;
-  result: 'success' | 'failure';
-  details: string;
-}
-
-const auditLogs: AuditLog[] = [];
-
-export function logAudit(
-  action: string,
-  email: string,
-  ip: string,
-  userAgent: string,
-  result: 'success' | 'failure',
-  details: string
-): void {
-  const log: AuditLog = {
-    timestamp: Date.now(),
-    action,
-    email,
-    ip,
-    userAgent,
-    result,
-    details,
-  };
-  
-  auditLogs.push(log);
-  
-  // Manter últimos 10000 logs
-  if (auditLogs.length > 10000) {
-    auditLogs.shift();
-  }
-}
-
-export function getAuditLogs(limit = 100): AuditLog[] {
-  return auditLogs.slice(-limit).reverse();
 }

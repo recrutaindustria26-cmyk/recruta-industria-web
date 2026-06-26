@@ -7,7 +7,7 @@ export function LoginGoogle() {
     <button
       onClick={() =>
         signIn("google", {
-          callbackUrl: "/painel"
+          callbackUrl: "/professional/dashboard"
         })
       }
     >

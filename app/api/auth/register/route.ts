@@ -181,30 +181,30 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Criar usuário no banco de dados
+    // Criar usuário (e perfil, se profissional) de forma atômica
     const hashedPassword = await hashPassword(password)
-    const user = await prisma.user.create({
-      data: {
-        email,
-        name: name || email.split('@')[0],
-        role: userType.toUpperCase() as 'COMPANY' | 'PROFESSIONAL',
-        passwordHash: hashedPassword,
-      },
-    })
+    const userData = {
+      email,
+      name: name || email.split('@')[0],
+      role: userType.toUpperCase() as 'COMPANY' | 'PROFESSIONAL',
+      passwordHash: hashedPassword,
+    }
 
-    // Se é profissional, criar Profile com todos os dados do formulário
+    let user
     if (userType === 'professional') {
-      try {
-        // Preparar dados do profile
-        // Para arrays, converter para JSON string
+      // Transação: se a criação do Profile falhar, o User também é revertido,
+      // evitando contas órfãs e perda silenciosa dos dados de cadastro.
+      user = await prisma.$transaction(async (tx) => {
+        const createdUser = await tx.user.create({ data: userData })
+
         const profileData = {
-          userId: user.id,
+          userId: createdUser.id,
           title: cargoDesejado || name || '',
           email: email,
           phone: telefone || null,
           whatsapp: whatsapp || null,
           location: cidade && estado ? `${cidade}, ${estado}` : estado || '',
-          
+
           // Dados pessoais
           cpf: cpf || null,
           dataNascimento: dataNascimento ? new Date(dataNascimento) : null,
@@ -215,24 +215,24 @@ export async function POST(request: NextRequest) {
           estadoCivil: estadoCivil || null,
           religiao: religiao || null,
           antecedentes: antecedentes === true || antecedentes === 'true',
-          
+
           // Filhos
           possuiFilhos: possuiFilhos === true || possuiFilhos === 'true',
           quantidadeFilhos: quantidadeFilhos ? parseInt(quantidadeFilhos) : null,
           faixaEtariaFilhos: faixaEtariaFilhos ? JSON.stringify(faixaEtariaFilhos) : null,
-          
+
           // Contato adicional
           telefone2: telefone2 || null,
-          
+
           // Localização
           estado: estado || null,
           cidade: cidade || null,
           disponibilidadeMudanca: disponibilidadeMudanca || null,
-          
+
           // Formação
           escolaridade: escolaridade || null,
           cursosCertificacoes: cursosCertificacoes ? JSON.stringify(cursosCertificacoes) : null,
-          
+
           // Profissional
           situacaoProfissional: situacaoProfissional || null,
           areaInteresse: areaInteresse || null,
@@ -241,35 +241,33 @@ export async function POST(request: NextRequest) {
           tempoExperiencia: tempoExperiencia || null,
           experienciasJSON: experiencias ? JSON.stringify(experiencias) : null,
           turnoDisponivel: turnoDisponivel || null,
-          
+
           // Recolocação e Salário
           disponibilidadeInicio: disponibilidadeInicio || null,
           recolocacao: recolocacao || null,
           pretensaoSalarial: pretensaoSalarial || null,
-          
+
           // Documentos
           curricoURL: curricoURL || null,
           atestadoURL: atestadoURL || null,
 
           // Foto de perfil
           avatar: fotoPerfil || null,
-          
+
           // Mensagem
           mensagemEmpresas: mensagemEmpresas || null,
-          
+
           // Bio e descrição
           bio: mensagemEmpresas || null,
           fullDescription: mensagemEmpresas || null,
         }
 
-        await prisma.profile.create({
-          data: profileData,
-        })
-      } catch (profileError: any) {
-        console.error('Erro ao criar Profile para profissional:', profileError)
-        // Log do erro mas continua - o User foi criado e é o importante
-        logAudit('profile_creation_failed', email, ip, userAgent, 'failure', `Profile creation failed: ${profileError?.message}`)
-      }
+        await tx.profile.create({ data: profileData })
+
+        return createdUser
+      })
+    } else {
+      user = await prisma.user.create({ data: userData })
     }
 
     // Log de auditoria

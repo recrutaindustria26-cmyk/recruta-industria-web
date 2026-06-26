@@ -16,6 +16,7 @@ interface ProfileData {
   plano?: 'free' | 'premium' | string;
   avatar?: string | null;
   telefone?: string;
+  telefone2?: string;
   whatsapp?: string;
   fotoPerfil?: string | null;
   curriculo?: string | null;

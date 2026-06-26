@@ -64,17 +64,28 @@ export const authOptions: NextAuthOptions = {
       return true;
     },
 
-    async session({ session, token }: any) {
-      if (session.user && token.sub) {
-        session.user.id = token.sub;
-      }
-      if (session.user && session.user.email) {
-        const dbUser = await prisma.user.findUnique({
-          where: { email: session.user.email },
-        });
+    async jwt({ token, user, account }: any) {
+      // On sign-in (credentials or OAuth) resolve the database user so the
+      // token carries the real DB id and role, not the OAuth provider's sub.
+      const email = user?.email || token.email;
+      if (email) {
+        const dbUser = await prisma.user.findUnique({ where: { email } });
         if (dbUser) {
-          session.user.userType = dbUser.role;
+          token.id = dbUser.id;
+          token.email = dbUser.email;
+          token.userType = dbUser.role;
         }
+      }
+      if (account?.provider) {
+        token.provider = account.provider;
+      }
+      return token;
+    },
+
+    async session({ session, token }: any) {
+      if (session.user) {
+        if (token.id) session.user.id = token.id;
+        if (token.userType) session.user.userType = token.userType;
       }
       return session;
     },

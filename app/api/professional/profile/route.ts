@@ -12,6 +12,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { Prisma } from '@prisma/client';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth.config';
 
@@ -57,6 +58,7 @@ export async function GET(request: NextRequest) {
         descricaoPessoal: user.profile.fullDescription || 'Não preenchido',
         habilidades: skills,
         telefone: user.profile.phone || '',
+        telefone2: user.profile.telefone2 || '',
         whatsapp: user.profile.whatsapp || '',
         fotoPerfil: user.profile.avatar || null,
         avatar: user.profile.avatar || null,
@@ -146,10 +148,57 @@ export async function POST(request: NextRequest) {
     const cleanedPortfolio = getStringValue(body.curriculo) || getStringValue(body.curricoURL) || getStringValue(body.portfolio) || null;
     const cleanedAtestado = getStringValue(body.atestado) || getStringValue(body.atestadoURL) || null;
 
+    // Demais campos do cadastro completo. Só incluímos valores realmente
+    // informados (filtrando null/undefined) para não sobrescrever dados
+    // existentes com vazio em uma atualização parcial.
+    const toBool = (v: any) => v === true || v === 'true' || v === 'Sim';
+    const toIntOrNull = (v: any) => {
+      const n = parseInt(v);
+      return Number.isNaN(n) ? null : n;
+    };
+    const toJsonArray = (v: any) =>
+      Array.isArray(v) ? (v.length ? JSON.stringify(v) : null) : getStringValue(v);
+
+    const richFieldsRaw: Record<string, string | number | boolean | Date | null> = {
+      cpf: getStringValue(body.cpf),
+      dataNascimento: body.dataNascimento ? new Date(body.dataNascimento) : null,
+      idade: body.idade ? toIntOrNull(body.idade) : null,
+      sexoBiologico: getStringValue(body.sexoBiologico),
+      identidadeGenero: getStringValue(body.identidadeGenero),
+      orientacaoSexual: getStringValue(body.orientacaoSexual),
+      estadoCivil: getStringValue(body.estadoCivil),
+      religiao: getStringValue(body.religiao),
+      antecedentes: body.antecedentes === undefined || body.antecedentes === '' ? null : toBool(body.antecedentes),
+      possuiFilhos: body.possuiFilhos === undefined || body.possuiFilhos === '' ? null : toBool(body.possuiFilhos),
+      quantidadeFilhos: body.quantidadeFilhos ? toIntOrNull(body.quantidadeFilhos) : null,
+      faixaEtariaFilhos: toJsonArray(body.faixaEtariaFilhos),
+      telefone2: getStringValue(body.telefone2),
+      estado: getStringValue(body.estado),
+      cidade: getStringValue(body.cidade),
+      disponibilidadeMudanca: getStringValue(body.disponibilidadeMudanca),
+      escolaridade: getStringValue(body.escolaridade),
+      cursosCertificacoes: toJsonArray(body.cursosCertificacoes),
+      situacaoProfissional: getStringValue(body.situacaoProfissional),
+      areaInteresse: getStringValue(body.areaInteresse),
+      cargoDesejado: getStringValue(body.cargoDesejado),
+      trabalhouIndustria: getStringValue(body.trabalhouIndustria),
+      tempoExperiencia: getStringValue(body.tempoExperiencia),
+      experienciasJSON: typeof body.experiencias === 'string' ? getStringValue(body.experiencias) : toJsonArray(body.experiencias),
+      turnoDisponivel: getStringValue(body.turnoDisponivel),
+      disponibilidadeInicio: getStringValue(body.disponibilidadeInicio),
+      recolocacao: getStringValue(body.recolocacao),
+      pretensaoSalarial: getStringValue(body.pretensaoSalarial),
+      mensagemEmpresas: getStringValue(body.mensagemEmpresas),
+    };
+    const richFields = Object.fromEntries(
+      Object.entries(richFieldsRaw).filter(([, v]) => v !== null && v !== undefined)
+    );
+
     // Criar ou atualizar perfil profissional
     const profile = await prisma.profile.upsert({
       where: { userId: user.id },
       update: {
+        ...(richFields as Prisma.ProfileUncheckedUpdateInput),
         title: body.cargoDesejado || body.profissao || '',
         bio: body.experiencias || body.descricaoPessoal || '',
         fullDescription: body.descricaoPessoal || body.experiencias || '',
@@ -166,6 +215,7 @@ export async function POST(request: NextRequest) {
         updatedAt: new Date()
       },
       create: {
+        ...(richFields as Partial<Prisma.ProfileUncheckedCreateInput>),
         userId: user.id,
         title: body.cargoDesejado || body.profissao || 'Profissional',
         bio: body.experiencias || body.descricaoPessoal || '',
